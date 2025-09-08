@@ -60,19 +60,26 @@ function onTick(_)
 	local direction = 0
 	local amount = 0
 
-	-- Equalize fluid amount and pressure between the two volumes
-	if volume_a > volume_b then
-		amount = (volume_a - volume_b) / 2
+	-- Get the current RPS
+	local current_rps, _ = component.slotTorqueApplyMomentum(RPS_SLOT, 0, 0)
+
+	-- Calculate the fluid amount to transfer between the two volumes
+	amount = (volume_a - volume_b) / 2
+
+	-- Multipy by pressure diff to add additional force
+	pressure_diff = pressure_a - pressure_b
+	amount = amount * pressure_diff
+
+	-- Adjust the amount based on the RPS to apply backforce
+	amount = amount - current_rps / RPS_FACTOR -- TODO: Fix runaway
+
+	-- Apply the fluid transfer
+	if amount > 0 then
 		direction = 1
-		pressure_diff = pressure_a - pressure_b
-		amount = amount * pressure_diff
 		component.fluidContentsTransferVolume(FLUID_VOLUME_A, FLUID_VOLUME_B, amount)
-	elseif volume_b > volume_a then
-		amount = (volume_b - volume_a) / 2
+	elseif amount < 0 then
 		direction = -1
-		pressure_diff = pressure_b - pressure_a
-		amount = amount * pressure_diff
-		component.fluidContentsTransferVolume(FLUID_VOLUME_B, FLUID_VOLUME_A, amount)
+		component.fluidContentsTransferVolume(FLUID_VOLUME_B, FLUID_VOLUME_A, -amount)
 	end
 
 	-- Calculate the 'mass' / torque, based on the pressure
