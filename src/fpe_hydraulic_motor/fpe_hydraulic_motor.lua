@@ -1,5 +1,36 @@
+-- TODO: Fix motor mode RPS being too low compared to pump mode RPS
+-- TODO: Also consider fluid flow for force instead of only pressure?
+-- TODO: Fix rapid oscillation due to RPS feedback
+-- TODO: Fix energy conservation: RPS -> flow -> RPS should be ~80% efficient
+-- TODO: Add data output for mechanical load estimate / torque feedback
+-- TODO: Add configurable limit for max. flow in L/s
+-- TODO: Tune so that 1 L/s is about 100 RPS and vice-versa
+-- TODO: Implement efficiency losses
+-- TODO: Handle gases:
+--       - either handle them as a regular fluid,
+--       - or let them pass freely through the component without affecting flow/rps
+--       - or pass them to a third fluid slot, as a gas relief valve
+--       - or just delete gases
+--       - note: we need to figure out how real hydraulic motors handle gases in the system
+
+-- Component details:
+-- Type: hydraulic motor/pump
+-- Converts fluid flow into RPS, and the other way around.
+
+-- NOTE: On how Stormworks implements pressure:
+--       Pressure can be measured by checking how full a volume is.
+--       Pressure is measured in atm, from 0 to 60.
+--       For example, for a volume of 1 liter:
+--       - 0% full   = 0.0 L = 0 atm
+--       - 50% full  = 0.5 L = 30 atm
+--       - 100% full = 1.0 L = 60 atm
+--       This is verified to be correct; it matches with the in-game
+--       tooltip display readouts.
+
+local TICK_RATE = 62 -- 62 ticks per second
 local MASS = 1.0
 local RPS_FACTOR = 100
+local FLUID_VOLUME_SIZE = 1 -- Liters
 
 local RPS_SLOT = 0
 local FLUID_SLOT_A = 0
@@ -27,6 +58,8 @@ local FILTERS_GASES = (
 	+ 4096 -- H2
 )
 
+local initialized = false
+
 ---@param slot integer
 ---@param volume integer
 local function resolveFluidVolumeFlow(slot, volume)
@@ -43,61 +76,121 @@ local function resolveFluidVolumeFlow(slot, volume)
 	)
 end
 
+---@return number rps
+local function getRPS()
+	local rps, _ = component.slotTorqueApplyMomentum(RPS_SLOT, 0, 0)
+	return rps
+end
+
+---@return number pressure_diff
+local function getFluidPressureDiff()
+	-- Get the pressure difference (in atm)
+	local pressure_a, _ = component.fluidContentsGetPressure(FLUID_VOLUME_A)
+	local pressure_b, _ = component.fluidContentsGetPressure(FLUID_VOLUME_B)
+	return pressure_a - pressure_b
+end
+
+---@return number, number, number
+local function getFluidBalanceAmount()
+	-- Get the amount of fluid that is necessary to balance the two volumes
+	local volume_a, _ = component.fluidContentsGetVolume(FLUID_VOLUME_A)
+	local volume_b, _ = component.fluidContentsGetVolume(FLUID_VOLUME_B)
+	return (volume_a - volume_b) * 0.5, volume_a, volume_b
+end
+
+---@param amount number
+local function transferFluid(amount)
+	if amount > 0 then
+		component.fluidContentsTransferVolume(FLUID_VOLUME_A, FLUID_VOLUME_B, amount)
+	elseif amount < 0 then
+		component.fluidContentsTransferVolume(FLUID_VOLUME_B, FLUID_VOLUME_A, -amount)
+	end
+end
+
+---@param target_rps number
+---@return number rps_after
+local function setRPS(target_rps)
+	local rps_after, _ = component.slotTorqueApplyMomentum(RPS_SLOT, MASS, target_rps)
+	return rps_after
+end
+
+local function initialize()
+	component.fluidContentsSetCapacity(FLUID_VOLUME_A, FLUID_VOLUME_SIZE)
+	component.fluidContentsSetCapacity(FLUID_VOLUME_B, FLUID_VOLUME_SIZE)
+	initialized = true
+end
+
 function onTick(_)
-	component.fluidContentsSetCapacity(FLUID_VOLUME_A, 1)
-	component.fluidContentsSetCapacity(FLUID_VOLUME_B, 1)
+	if not initialized then
+		initialize()
+	end
 
 	-- Resolve the fluid flow for the volumes connected to the slots
+	-- so that the amounts and pressures are in sync with the input/output slots
 	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
 	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
-	local pressure_a, _ = component.fluidContentsGetPressure(FLUID_VOLUME_A)
-	local pressure_b, _ = component.fluidContentsGetPressure(FLUID_VOLUME_B)
-	local volume_a, _ = component.fluidContentsGetVolume(FLUID_VOLUME_A)
-	local volume_b, _ = component.fluidContentsGetVolume(FLUID_VOLUME_B)
+	local external_rps = getRPS()
 
-	local pressure_diff = 0
-	local direction = 0
-	local amount = 0
+	-- TODO: Fix:
+	--       - If external_rps is zero, and is still zero after we've called setRPS(net_rps),
+	--         then this means a huge load is attached that is preventing the motor from moving.
+	--         This should completely block fluid flow, but currently fluid still passes through.
+	--         We should store the rps_after value in a rps_prev_tick variable, and use that
+	--         to calculate the load.
 
-	-- Get the current RPS
-	local current_rps, _ = component.slotTorqueApplyMomentum(RPS_SLOT, 0, 0)
+	-- Calculate the pump flow caused by the external RPS
+	local pump_rps = external_rps
+	local pump_amount = (pump_rps / TICK_RATE) / RPS_FACTOR -- RPS -> rotation per tick -> fluid per tick
 
-	-- Calculate the fluid amount to transfer between the two volumes
-	amount = (volume_a - volume_b) / 2
+	-- Calculate the motor RPS generated by the fluid balance flow
+	local motor_amount, volume_a_before, volume_b_before = getFluidBalanceAmount()
+	local motor_rps = motor_amount * TICK_RATE * RPS_FACTOR -- Fluid per tick -> Fluid per second -> RPS
 
-	-- Multipy by pressure diff to add additional force
-	pressure_diff = pressure_a - pressure_b
-	amount = amount * pressure_diff
+	-- Calculate net amounts to cancel out opposing forces and to factor in helping forces
+	local net_rps = motor_rps - pump_rps
+	local net_amount = motor_amount - pump_amount
 
-	-- Adjust the amount based on the RPS to apply backforce
-	amount = amount - current_rps / RPS_FACTOR -- TODO: Fix runaway
+	-- TODO: Fix: Add flow constraint; the amount added/removed can never exceed the limits
+	--       of the volumes.
+	--
+	--       For example, if the external_rps causes the pump_amount to exceed the possible pump amount,
+	--       then the pumped amount should be limited to that max. amount, and the RPS should be slowed
+	--       down to fit in that constraint as well.
+	--
+	--       When transferring fluid from volume A, then:
+	--       - the amount can never be more than what volume A can contain
+	--       - and the amount can never be more than what volume B contains
+	--       And when transferring fluid from volume B, then:
+	--       - the amount can never be more than what volume B can contain
+	--       - and the amount can never be more than what volume A contains
+	--
+	--       So, this means:
+	--       - The RPS of the shaft is limited by the amount of fluid that can be transferred.
+	--       - The max. amount of fluid that is transferred by the shaft's pumping action is limited by the
+	--         size of the volumes and the amounts in the volumes.
 
-	-- Apply the fluid transfer
-	if amount > 0 then
-		direction = 1
-		component.fluidContentsTransferVolume(FLUID_VOLUME_A, FLUID_VOLUME_B, amount)
-	elseif amount < 0 then
-		direction = -1
-		component.fluidContentsTransferVolume(FLUID_VOLUME_B, FLUID_VOLUME_A, -amount)
-	end
+	transferFluid(net_amount)
+	local balance_after, volume_a_after, volume_b_after = getFluidBalanceAmount()
 
-	-- Calculate the 'mass' / torque, based on the pressure
-	local mass = MASS * (((pressure_a / 60) + (pressure_b / 60)) / 2)
-
-	-- Update the torque slot output
-	local target_rps = amount * direction * RPS_FACTOR
-	local rps_after, _ = component.slotTorqueApplyMomentum(RPS_SLOT, mass, target_rps)
+	local rps_after = setRPS(net_rps)
 
 	component.setOutputLogicSlotComposite(DATA_OUT_SLOT, {
 		bool_values = {},
 		float_values = {
-			[1] = 0,
-			[2] = 0,
-			[3] = 0,
-			[4] = rps_after,
-			[5] = 0,
-			[6] = pressure_diff,
+			[1] = motor_amount,
+			[2] = pump_amount,
+			[3] = motor_rps,
+			[4] = pump_rps,
+			[5] = net_rps,
+			[6] = net_amount,
+			[7] = 0, --target_rps,
+			[8] = rps_after,
+			[9] = balance_after,
+			[10] = volume_a_before,
+			[11] = volume_b_before,
+			[12] = volume_a_after,
+			[13] = volume_b_after,
 		},
 	})
 end
