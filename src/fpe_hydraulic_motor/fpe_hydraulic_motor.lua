@@ -76,7 +76,7 @@ local SLIPPAGE = 0.001 -- 0.1% per tick
 --       tooltip display readouts.
 
 local TICK_RATE = 62 -- 62 ticks per second
-local MASS = 10 -- Base torque
+local MASS = 1 -- Base torque
 local FLUID_MASS = 1.0
 local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
 
@@ -118,6 +118,13 @@ local function sign(x)
 	else
 		return 0
 	end
+end
+
+---@param a number
+---@param b number
+---@return number midpoint The midpoint between A and B.
+local function mid(a, b)
+	return (a + b) * 0.5
 end
 
 ---@param slot integer
@@ -195,14 +202,8 @@ end
 ---@param target_rps number
 ---@param force number
 ---@return number rps_after
-local function setRPS(target_rps, force)
-	local mass = 0.1 + MASS * force
-	if mass < 0.1 then
-		-- Note: We always need at least a tiny bit of mass, otherwise there is
-		-- no resistance at all and the system gets wonky
-		mass = 0.1
-	end
-	local rps_after, _ = component.slotTorqueApplyMomentum(RPS_SLOT, mass, target_rps)
+local function applyMomentum(target_rps, force)
+	local rps_after, _ = component.slotTorqueApplyMomentum(RPS_SLOT, force, target_rps)
 	return rps_after
 end
 
@@ -236,45 +237,68 @@ function onTick(_)
 	local amount_a = getAmount(FLUID_VOLUME_A)
 	local amount_b = getAmount(FLUID_VOLUME_B)
 
-	-- Calculate pump flow from external RPS
-	local pump_flow_per_tick = rpsToFlowAmount(external_rps)
-	local pump_flow_clamped = clampTransferAmount(pump_flow_per_tick, amount_a, amount_b)
+	-- Determine the flow rate, which is the fluid amount required
+	-- to equalize volume A and volume B this tick
+	local desired_flow_rate = (amount_a - amount_b) * 0.5 -- L/tick
+	desired_flow_rate = desired_flow_rate * TICK_RATE -- Convert to L/sec
 
-	-- Apply slippage to pump flow
-	local actual_pump_flow = pump_flow_clamped * (1 - SLIPPAGE)
+	-- Determine the RPS based on the flow (speed = flow / displacement)
+	local desired_rps = desired_flow_rate / DISPLACEMENT
 
-	-- Transfer the fluid (pump drives the system)
-	transferFluid(actual_pump_flow)
+	-- Determine the flow rate based on the external RPS
+	local desired_pump_flow_rate = external_rps * DISPLACEMENT -- L/s
 
-	-- Motor RPS is determined by the actual flow
-	local motor_rps = flowAmountToRPS(actual_pump_flow) * (1 - SLIPPAGE)
+	local target_rps = 0
+	local target_flow_rate = 0
+	if desired_pump_flow_rate < desired_flow_rate then
+		-- External RPS generates less flow than the desired fluid flow rate
+		-- The desired fluid flow rate will speed up the RPS
 
-	-- Calculate force based on pressure differential
-	local pressure_diff = getFluidPressureDiff()
-	local base_force = math.abs(pressure_diff) * DISPLACEMENT * FLUID_MASS
+		-- Increase RPS
+		target_rps = mid(desired_rps, external_rps)
 
-	-- Ensure minimum force for movement, but scale with pressure
-	local force = math.max(base_force, MASS)
+		-- Decrease flow
+		target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
+	elseif desired_pump_flow_rate > desired_flow_rate then
+		-- External RPS generates more flow than the desired fluid flow rate
+		-- The desired fluid flow rate will slow down the RPS
 
-	-- Apply motor RPS to output shaft
-	local rps_after = setRPS(motor_rps, force)
+		-- Decrease RPS
+		target_rps = mid(desired_rps, external_rps)
+
+		-- Increase flow
+		target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
+	end
+
+	-- Determine torque based on the flow rate difference (Stormworks pressure)
+	local delta_p = math.abs(desired_flow_rate - target_flow_rate)
+	local torque = MASS + delta_p
+
+	-- Apply the momentum and check how effective the RPS change was
+	local rps_after = applyMomentum(target_rps, torque)
+
+	-- Determine the final flow rate based on the updated RPS, so we can move
+	-- the correct amount of fluid
+	local final_flow_rate = rps_after * DISPLACEMENT -- L/s
+	local final_flow_rate_per_tick = final_flow_rate / TICK_RATE -- L/tick
+	transferFluid(final_flow_rate_per_tick)
 
 	component.setOutputLogicSlotComposite(DATA_OUT_SLOT, {
 		bool_values = {},
 		float_values = {
-			[1] = pump_flow_per_tick,
-			[2] = pump_flow_clamped,
-			[3] = actual_pump_flow,
-			[4] = motor_rps,
-			[5] = external_rps,
-			[6] = pressure_diff,
-			[7] = force,
-			[8] = rps_after,
-			[9] = amount_a,
-			[10] = amount_b,
-			[11] = base_force,
-			[12] = 0, -- unused
-			[13] = 0, -- unused
+			-- [1] = pump_flow_per_tick,
+			-- [2] = pump_flow_clamped,
+			-- [3] = actual_pump_flow,
+			-- [4] = motor_rps,
+			-- [5] = external_rps,
+			-- [6] = pressure_diff,
+			-- [7] = force,
+			-- [8] = rps_after,
+			-- [9] = amount_a,
+			-- [10] = amount_b,
+			-- [11] = 0, -- unused
+			-- [12] = 0, -- unused
+			-- [13] = 0, -- unused
 		},
 	})
 end
