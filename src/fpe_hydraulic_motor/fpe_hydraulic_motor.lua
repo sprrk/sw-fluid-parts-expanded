@@ -37,6 +37,7 @@
 -- Unit: cm3 per revolution.
 -- Both fixed-displacement and variable-displacement motors exist.
 local DISPLACEMENT = 0.1 -- 0.1L per revolution
+local TORQUE_FACTOR = 0.1
 
 local TICK_RATE = 62 -- 62 ticks per second
 local SW_FLUID_SCALING = 60 / math.pi
@@ -273,7 +274,7 @@ function onTick(_)
 
 	-- Determine torque based on the flow rate difference (Stormworks pressure)
 	local delta_p = math.abs(desired_flow_rate - target_flow_rate)
-	local torque = MASS + delta_p
+	local torque = MASS + delta_p * TORQUE_FACTOR
 
 	-- Apply the momentum and check how effective the RPS change was
 	local rps_after = applyMomentum(target_rps, torque)
