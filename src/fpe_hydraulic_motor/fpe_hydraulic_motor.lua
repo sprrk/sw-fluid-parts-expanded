@@ -288,19 +288,19 @@ function onTick(_)
 	component.setOutputLogicSlotComposite(DATA_OUT_SLOT, {
 		bool_values = {},
 		float_values = {
-			-- [1] = pump_flow_per_tick,
-			-- [2] = pump_flow_clamped,
-			-- [3] = actual_pump_flow,
-			-- [4] = motor_rps,
-			-- [5] = external_rps,
-			-- [6] = pressure_diff,
-			-- [7] = force,
-			-- [8] = rps_after,
-			-- [9] = amount_a,
-			-- [10] = amount_b,
-			-- [11] = 0, -- unused
-			-- [12] = 0, -- unused
-			-- [13] = 0, -- unused
+			[1] = external_rps,
+			[2] = amount_a,
+			[3] = amount_b,
+			[4] = desired_flow_rate,
+			[5] = desired_rps,
+			[6] = desired_pump_flow_rate,
+			[7] = target_rps,
+			[8] = target_flow_rate,
+			[9] = delta_p,
+			[10] = torque,
+			[11] = rps_after,
+			[12] = final_flow_rate,
+			[13] = final_flow_rate_per_tick,
 		},
 	})
 end
