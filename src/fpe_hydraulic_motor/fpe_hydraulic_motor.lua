@@ -38,6 +38,9 @@
 -- Both fixed-displacement and variable-displacement motors exist.
 local DISPLACEMENT = 0.1 -- 0.1L per revolution
 
+local TICK_RATE = 62 -- 62 ticks per second
+local SW_FLUID_SCALING = 60 / math.pi
+
 -- Torque output:
 -- Function of system pressure and motor displacement.
 
@@ -75,7 +78,6 @@ local SLIPPAGE = 0.001 -- 0.1% per tick
 --       This is verified to be correct; it matches with the in-game
 --       tooltip display readouts.
 
-local TICK_RATE = 62 -- 62 ticks per second
 local MASS = 1 -- Base torque
 local FLUID_MASS = 1.0
 local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
@@ -245,7 +247,7 @@ function onTick(_)
 	local desired_rps = desired_flow_rate / DISPLACEMENT
 
 	-- Determine the flow rate based on the external RPS
-	local desired_pump_flow_rate = external_rps * DISPLACEMENT -- L/s
+	local desired_pump_flow_rate = external_rps * DISPLACEMENT / SW_FLUID_SCALING -- L/s
 
 	local target_rps = 0
 	local target_flow_rate = 0
@@ -278,7 +280,7 @@ function onTick(_)
 
 	-- Determine the final flow rate based on the updated RPS, so we can move
 	-- the correct amount of fluid
-	local final_flow_rate = rps_after * DISPLACEMENT -- L/s
+	local final_flow_rate = (rps_after * DISPLACEMENT) / SW_FLUID_SCALING -- L/s
 	local final_flow_rate_per_tick = final_flow_rate / TICK_RATE -- L/tick
 	transferFluid(final_flow_rate_per_tick)
 
