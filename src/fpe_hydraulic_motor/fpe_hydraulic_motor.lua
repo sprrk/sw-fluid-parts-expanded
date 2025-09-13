@@ -237,9 +237,8 @@ function onTick(_)
 	local amount_a = getAmount(FLUID_VOLUME_A)
 	local amount_b = getAmount(FLUID_VOLUME_B)
 
-	-- Determine the flow rate, which is the fluid amount required
-	-- to equalize volume A and volume B this tick
-	local desired_flow_rate = (amount_a - amount_b) * 0.5 -- L/tick
+	-- Determine the flow rate based on the difference between the two volumes
+	local desired_flow_rate = amount_a - amount_b -- L/tick
 	desired_flow_rate = desired_flow_rate * TICK_RATE -- Convert to L/sec
 
 	-- Determine the RPS based on the flow (speed = flow / displacement)
