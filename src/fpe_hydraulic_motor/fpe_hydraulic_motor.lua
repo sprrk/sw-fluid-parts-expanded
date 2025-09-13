@@ -1,3 +1,38 @@
+-- Research notes:
+-- Displacement is constant for fixed-displacement motors, regardless of pressure.
+-- Each revolution moves the same amount of liquid.
+-- Examples:
+-- Skid steer boom: 0.05 L/rev
+-- Small/medium skid steer wheel: 0.1 to 0.5 L/rev
+-- Large skid steer wheel: 1.0 L/rev
+--
+-- The pressure differential between the pump/motor's inlet and outlet
+-- determines the torque.
+-- Higher torque makes the pump more difficult to spin.
+-- Higher torque gives the motor more power to spin its shaft.
+--
+-- The absolute system pressure does not affect the torque, speed or displacement.
+-- The motor/pump operates the same at 10 atm and 60 atm.
+--
+-- Very high pressure differential can cause internal leakage (slip), causing less
+-- flow to effectively turn the shaft.
+-- Leakage is a volume flow rate (L/s).
+-- Increased pressure differential forces more fluid through internal clearances,
+-- causing more leakage.
+-- Example:
+-- 1 L/s flow rate; 10 atm; 5% leakage; 0.95 L/s converted to speed; 0.05 L/s passes through.
+-- 1 L/s flow rate; 60 atm; 10% leakage; 0.90 L/s converted to speed; 0.10 L/s passes through.
+--
+-- Flow rate affects motor/pump speed.
+-- Speed depends on displacement.
+-- Speed = flow_rate / displacement
+
+-- TODO: Add pressure-compensated flow valve, so that the constant absolute
+--       flow rate is guaranteed even if load or pressure changes:
+--       - Add number input slot to control internal flow valve
+--       - value <= 0 : fully open, no restriction
+--       - value > 0: restrict L/s to value
+
 -- Volume of fluid required to turn motor output shaft through one revolution.
 -- Unit: cm3 per revolution.
 -- Both fixed-displacement and variable-displacement motors exist.
