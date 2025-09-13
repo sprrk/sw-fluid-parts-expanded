@@ -1,3 +1,7 @@
+-- Component details:
+-- Type: hydraulic motor/pump
+-- Converts fluid flow into RPS, and the other way around.
+
 -- Research notes:
 -- Displacement is constant for fixed-displacement motors, regardless of pressure.
 -- Each revolution moves the same amount of liquid.
@@ -33,42 +37,6 @@
 --       - value <= 0 : fully open, no restriction
 --       - value > 0: restrict L/s to value
 
--- Volume of fluid required to turn motor output shaft through one revolution.
--- Unit: cm3 per revolution.
--- Both fixed-displacement and variable-displacement motors exist.
-local DISPLACEMENT = 0.1 -- 0.1L per revolution
-local TORQUE_FACTOR = 0.1
-
-local TICK_RATE = 62 -- 62 ticks per second
-local SW_FLUID_SCALING = 60 / math.pi
-
--- Torque output:
--- Function of system pressure and motor displacement.
-
--- Breakaway torque:
--- Torque required to get a stationary load turning.
-
--- Running torque:
--- Indicates torque required to keep a load turning, or the actual torque
--- that a motor can develop to keep a load turning. Often about 90%.
-
--- Starting torque:
--- Capacity of a hydraulic motor to start a load.
-
--- Motor speed:
--- Function of motor displacement and volume of fluid delivered to motor.
-
--- Leakage through the motor, or fluid that passes through the motor
--- without performing work.
-local SLIPPAGE = 0.001 -- 0.1% per tick
-
--- TODO: Fix motor mode RPS being too low compared to pump mode RPS
--- TODO: Fix energy conservation: RPS -> flow -> RPS should be ~90% efficient
-
--- Component details:
--- Type: hydraulic motor/pump
--- Converts fluid flow into RPS, and the other way around.
-
 -- NOTE: On how Stormworks implements pressure:
 --       Pressure can be measured by checking how full a volume is.
 --       Pressure is measured in atm, from 0 to 60.
@@ -79,9 +47,13 @@ local SLIPPAGE = 0.001 -- 0.1% per tick
 --       This is verified to be correct; it matches with the in-game
 --       tooltip display readouts.
 
-local MASS = 1 -- Base torque
-local FLUID_MASS = 1.0
+local DISPLACEMENT = 0.1 -- 0.1L per revolution
+local TORQUE_FACTOR = 100.0
+local MASS = 0.01 -- Base torque
 local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
+
+local TICK_RATE = 62 -- 62 ticks per second
+local SW_FLUID_SCALING = 60 / math.pi
 
 local RPS_SLOT = 0
 local FLUID_SLOT_A = 0
@@ -121,6 +93,14 @@ local function sign(x)
 	else
 		return 0
 	end
+end
+
+---@param a number
+---@param b number
+---@param t number
+---@return number
+local function lerp(a, b, t)
+	return a + (b - a) * t
 end
 
 ---@param a number
@@ -241,39 +221,49 @@ function onTick(_)
 	local amount_b = getAmount(FLUID_VOLUME_B)
 
 	-- Determine the flow rate based on the difference between the two volumes
-	local desired_flow_rate = amount_a - amount_b -- L/tick
-	desired_flow_rate = desired_flow_rate * TICK_RATE -- Convert to L/sec
+	local desired_flow_rate = (amount_a - amount_b) * 0.5
 
 	-- Determine the RPS based on the flow (speed = flow / displacement)
-	local desired_rps = desired_flow_rate / DISPLACEMENT
+	local desired_rps = (desired_flow_rate / DISPLACEMENT) * SW_FLUID_SCALING
 
 	-- Determine the flow rate based on the external RPS
-	local desired_pump_flow_rate = external_rps * DISPLACEMENT / SW_FLUID_SCALING -- L/s
+	local desired_pump_flow_rate = (external_rps * DISPLACEMENT) / SW_FLUID_SCALING -- L/sec
 
 	local target_rps = 0
 	local target_flow_rate = 0
-	if desired_pump_flow_rate < desired_flow_rate then
+	-- local TEST_VAL = 0.5 -- Value of 0.5 seems to give fair results
+	-- if desired_pump_flow_rate < desired_flow_rate then
+	if math.abs(external_rps) < math.abs(desired_rps) then
 		-- External RPS generates less flow than the desired fluid flow rate
 		-- The desired fluid flow rate will speed up the RPS
 
 		-- Increase RPS
 		target_rps = mid(desired_rps, external_rps)
+		-- target_rps = lerp(external_rps, desired_rps, TEST_VAL)
+		-- target_rps = desired_rps
 
 		-- Decrease flow
 		target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
-	elseif desired_pump_flow_rate > desired_flow_rate then
+		-- target_flow_rate = lerp(desired_flow_rate, desired_pump_flow_rate, TEST_VAL)
+		-- target_flow_rate = desired_pump_flow_rate
+		--elseif desired_pump_flow_rate > desired_flow_rate then
+	elseif math.abs(external_rps) > math.abs(desired_rps) then
 		-- External RPS generates more flow than the desired fluid flow rate
 		-- The desired fluid flow rate will slow down the RPS
 
 		-- Decrease RPS
 		target_rps = mid(desired_rps, external_rps)
+		-- target_rps = lerp(desired_rps, external_rps, TEST_VAL)
+		-- target_rps = external_rps
 
 		-- Increase flow
 		target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
+		-- target_flow_rate = lerp(desired_pump_flow_rate, desired_flow_rate, TEST_VAL)
+		-- target_flow_rate = desired_flow_rate
 	end
 
 	-- Determine torque based on the flow rate difference (Stormworks pressure)
-	local delta_p = math.abs(desired_flow_rate - target_flow_rate)
+	local delta_p = math.abs(desired_flow_rate)
 	local torque = MASS + delta_p * TORQUE_FACTOR
 
 	-- Apply the momentum and check how effective the RPS change was
