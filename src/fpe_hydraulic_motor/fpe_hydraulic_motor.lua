@@ -133,44 +133,11 @@ local function getRPS()
 	return rps
 end
 
----@return number pressure_diff
-local function getFluidPressureDiff()
-	-- Get the pressure difference (in atm)
-	local pressure_a, _ = component.fluidContentsGetPressure(FLUID_VOLUME_A)
-	local pressure_b, _ = component.fluidContentsGetPressure(FLUID_VOLUME_B)
-	return pressure_a - pressure_b
-end
-
 ---@param index integer The index of the volume
 ---@return number
 local function getAmount(index)
 	local amount, _ = component.fluidContentsGetVolume(index)
 	return amount
-end
-
----@param vol_a number
----@param vol_b number
----@return number the Amount of fluid that is necessary to balance the two volumes
-local function getFluidBalanceAmount(vol_a, vol_b)
-	return (vol_a - vol_b) * 0.5
-end
-
----@param amount number Desired transfer amount
----@param vol_a number The amount in volume A
----@param vol_b number The amount in volume B
----@return number clamped Amount that respects volume limits
-local function clampTransferAmount(amount, vol_a, vol_b)
-	-- How much can physically leave the source and fit in the destination?
-	local max_a_to_b = math.min(vol_a, FLUID_VOLUME_SIZE - vol_b)
-	local max_b_to_a = math.min(vol_b, FLUID_VOLUME_SIZE - vol_a)
-
-	if amount > 0 then
-		return math.min(amount, max_a_to_b)
-	elseif amount < 0 then
-		return math.max(amount, -max_b_to_a)
-	else
-		return 0
-	end
 end
 
 ---@param amount number
@@ -191,15 +158,15 @@ local function applyMomentum(target_rps, force)
 end
 
 ---@param rps number
----@return number flow_amount (L/tick)
-local function rpsToFlowAmount(rps)
-	return (rps * DISPLACEMENT) / TICK_RATE
+---@return number flow_rate (L/sec)
+local function rpsToFlowRate(rps)
+	return (rps * DISPLACEMENT) / SW_FLUID_SCALING
 end
 
----@param flow_amount number (L/tick)
+---@param flow_rate number (L/sec)
 ---@return number rps
-local function flowAmountToRPS(flow_amount)
-	return (flow_amount * TICK_RATE) / DISPLACEMENT
+local function flowRateToRPS(flow_rate)
+	return (flow_rate / DISPLACEMENT) * SW_FLUID_SCALING
 end
 
 local function initialize()
@@ -224,10 +191,10 @@ function onTick(_)
 	local desired_flow_rate = (amount_a - amount_b) * 0.5
 
 	-- Determine the RPS based on the flow (speed = flow / displacement)
-	local desired_rps = (desired_flow_rate / DISPLACEMENT) * SW_FLUID_SCALING
+	local desired_rps = flowRateToRPS(desired_flow_rate)
 
 	-- Determine the flow rate based on the external RPS
-	local desired_pump_flow_rate = (external_rps * DISPLACEMENT) / SW_FLUID_SCALING -- L/sec
+	local desired_pump_flow_rate = rpsToFlowRate(external_rps) -- L/sec
 
 	local target_rps = 0
 	local target_flow_rate = 0
@@ -258,7 +225,7 @@ function onTick(_)
 
 	-- Determine the final flow rate based on the updated RPS, so we can move
 	-- the correct amount of fluid
-	local final_flow_rate = (rps_after * DISPLACEMENT) / SW_FLUID_SCALING -- L/s
+	local final_flow_rate = rpsToFlowRate(rps_after) -- L/s
 	local final_flow_rate_per_tick = final_flow_rate / TICK_RATE -- L/tick
 	transferFluid(final_flow_rate_per_tick)
 
