@@ -47,7 +47,7 @@
 --       This is verified to be correct; it matches with the in-game
 --       tooltip display readouts.
 
-local DISPLACEMENT = 0.1 -- 0.1L per revolution
+local DISPLACEMENT = 1.0 -- L per revolution
 local TORQUE_FACTOR = 100.0
 local MASS = 0.01 -- Base torque
 local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
@@ -93,6 +93,14 @@ local function sign(x)
 	else
 		return 0
 	end
+end
+
+---@param value number
+---@param min_val number
+---@param max_val number
+---@return number clamped_value
+local function clamp(value, min_val, max_val)
+	return math.max(min_val, math.min(max_val, value))
 end
 
 ---@param a number
@@ -189,6 +197,7 @@ function onTick(_)
 
 	-- Determine the flow rate based on the difference between the two volumes
 	local desired_flow_rate = (amount_a - amount_b) * 0.5
+	desired_flow_rate = desired_flow_rate * TICK_RATE -- L/sec
 
 	-- Determine the RPS based on the flow (speed = flow / displacement)
 	local desired_rps = flowRateToRPS(desired_flow_rate)
@@ -196,31 +205,12 @@ function onTick(_)
 	-- Determine the flow rate based on the external RPS
 	local desired_pump_flow_rate = rpsToFlowRate(external_rps) -- L/sec
 
-	local target_rps = 0
-	local target_flow_rate = 0
-
-	-- Detect external load and adjust influence accordingly
-	local rps_mismatch = math.abs(external_rps - desired_rps)
-	local MISMATCH_THRESHOLD = 1.0
-
-	-- Choose influence based on load detection
-	local hydraulic_influence = (rps_mismatch > MISMATCH_THRESHOLD) and 0.1 or 0.99
-	local torque_factor = (rps_mismatch > MISMATCH_THRESHOLD) and (TORQUE_FACTOR * 0.1) or TORQUE_FACTOR
-	local flow_multiplier = (rps_mismatch > MISMATCH_THRESHOLD) and 3.0 or 1.0 -- 3x flow for external loads
-
-	if math.abs(external_rps) < math.abs(desired_rps) then
-		target_rps = lerp(external_rps, desired_rps, hydraulic_influence)
-		target_flow_rate = lerp(desired_flow_rate * flow_multiplier, desired_pump_flow_rate, hydraulic_influence)
-	elseif math.abs(external_rps) > math.abs(desired_rps) then
-		target_rps = lerp(desired_rps, external_rps, 1.0 - hydraulic_influence)
-		target_flow_rate = lerp(desired_pump_flow_rate, desired_flow_rate * flow_multiplier, 1.0 - hydraulic_influence)
-	end
-
-	-- Calculate torque with load-adjusted factor
-	local delta_p = math.abs(desired_flow_rate)
-	local torque = MASS + delta_p * torque_factor
+	-- Find the midpoint for the two competing flow rates
+	local target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
+	local target_rps = flowRateToRPS(target_flow_rate)
 
 	-- Apply the momentum and check how effective the RPS change was
+	local torque = 0.02
 	local rps_after = applyMomentum(target_rps, torque)
 
 	-- Determine the final flow rate based on the updated RPS, so we can move
@@ -240,11 +230,12 @@ function onTick(_)
 			[6] = desired_pump_flow_rate,
 			[7] = target_rps,
 			[8] = target_flow_rate,
-			[9] = delta_p,
+			[9] = 0, --delta_p,
 			[10] = torque,
 			[11] = rps_after,
 			[12] = final_flow_rate,
 			[13] = final_flow_rate_per_tick,
+			[14] = final_flow_rate * SW_FLUID_SCALING, -- True L/s as shown in-game
 		},
 	})
 end
