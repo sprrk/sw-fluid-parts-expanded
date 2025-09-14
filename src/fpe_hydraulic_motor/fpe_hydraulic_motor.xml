@@ -24,6 +24,9 @@
 		<logic_node orientation="4" label="RPS" type="2">
 			<position/>
 		</logic_node>
+    <logic_node label="Flow Limit" mode="1" type="1" description="Number input for limiting the maximum flow (L/s). A value of 0 or lower disables the limit.">
+			<position/>
+		</logic_node>
 		<logic_node label="Data Output" type="5" description="TEST_COMPOSITE_OUTPUT">
 			<position/>
 		</logic_node>
