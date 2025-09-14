@@ -239,13 +239,14 @@ function onTick(_)
 	-- Choose influence based on load detection
 	local hydraulic_influence = (rps_mismatch > MISMATCH_THRESHOLD) and 0.1 or 0.99
 	local torque_factor = (rps_mismatch > MISMATCH_THRESHOLD) and (TORQUE_FACTOR * 0.1) or TORQUE_FACTOR
+	local flow_multiplier = (rps_mismatch > MISMATCH_THRESHOLD) and 3.0 or 1.0 -- 3x flow for external loads
 
 	if math.abs(external_rps) < math.abs(desired_rps) then
 		target_rps = lerp(external_rps, desired_rps, hydraulic_influence)
-		target_flow_rate = lerp(desired_flow_rate, desired_pump_flow_rate, hydraulic_influence)
+		target_flow_rate = lerp(desired_flow_rate * flow_multiplier, desired_pump_flow_rate, hydraulic_influence)
 	elseif math.abs(external_rps) > math.abs(desired_rps) then
 		target_rps = lerp(desired_rps, external_rps, 1.0 - hydraulic_influence)
-		target_flow_rate = lerp(desired_pump_flow_rate, desired_flow_rate, 1.0 - hydraulic_influence)
+		target_flow_rate = lerp(desired_pump_flow_rate, desired_flow_rate * flow_multiplier, 1.0 - hydraulic_influence)
 	end
 
 	-- Calculate torque with load-adjusted factor
