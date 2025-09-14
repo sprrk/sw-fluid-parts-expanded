@@ -2,12 +2,6 @@
 -- Type: hydraulic motor
 -- Converts fluid flow into RPS, and the other way around (less efficiently).
 
--- TODO: Add pressure-compensated flow valve, so that the constant absolute
---       flow rate is guaranteed even if load or pressure changes:
---       - Add number input slot to control internal flow valve
---       - value <= 0 : fully open, no restriction
---       - value > 0: restrict L/s to value
-
 local DISPLACEMENT = 10.0 -- L per revolution
 local MASS = 2 -- Base torque, similar to small electric motor
 local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
@@ -19,6 +13,7 @@ local RPS_SLOT = 0
 local FLUID_SLOT_A = 0
 local FLUID_SLOT_B = 1
 local DATA_OUT_SLOT = 0
+local FLOW_LIMIT_SLOT = 0
 
 local FLUID_VOLUME_A = 0
 local FLUID_VOLUME_B = 1
@@ -151,6 +146,11 @@ function onTick(_)
 	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
 	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
+	local flow_limit = component.getInputLogicSlotFloat(FLOW_LIMIT_SLOT)
+	if flow_limit then
+		flow_limit = math.abs(flow_limit / SW_FLUID_SCALING) -- Convert to L/tick
+	end
+
 	local external_rps = getRPS()
 	local amount_a = getAmount(FLUID_VOLUME_A)
 	local amount_b = getAmount(FLUID_VOLUME_B)
@@ -167,6 +167,14 @@ function onTick(_)
 
 	-- Find the midpoint for the two competing flow rates
 	local target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
+	if flow_limit > 0 and (flow_limit < math.abs(target_flow_rate)) then
+		if target_flow_rate > 0 then
+			target_flow_rate = flow_limit
+		else
+			target_flow_rate = -flow_limit
+		end
+	end
+
 	local target_rps = flowRateToRPS(target_flow_rate)
 
 	-- Apply the momentum and check how effective the RPS change was
