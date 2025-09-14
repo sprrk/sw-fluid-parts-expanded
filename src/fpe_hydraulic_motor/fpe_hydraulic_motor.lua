@@ -38,34 +38,6 @@ local FILTERS_GASES = (
 
 local initialized = false
 
----@param x number
----@return number sign (-1, 0, or 1)
-local function sign(x)
-	if x > 0 then
-		return 1
-	elseif x < 0 then
-		return -1
-	else
-		return 0
-	end
-end
-
----@param value number
----@param min_val number
----@param max_val number
----@return number clamped_value
-local function clamp(value, min_val, max_val)
-	return math.max(min_val, math.min(max_val, value))
-end
-
----@param a number
----@param b number
----@param t number
----@return number
-local function lerp(a, b, t)
-	return a + (b - a) * t
-end
-
 ---@param a number
 ---@param b number
 ---@return number midpoint The midpoint between A and B.
