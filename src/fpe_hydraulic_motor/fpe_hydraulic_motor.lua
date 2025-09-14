@@ -231,40 +231,26 @@ function onTick(_)
 
 	local target_rps = 0
 	local target_flow_rate = 0
-	-- local TEST_VAL = 0.5 -- Value of 0.5 seems to give fair results
-	-- if desired_pump_flow_rate < desired_flow_rate then
+
+	-- Detect external load and adjust influence accordingly
+	local rps_mismatch = math.abs(external_rps - desired_rps)
+	local MISMATCH_THRESHOLD = 1.0
+
+	-- Choose influence based on load detection
+	local hydraulic_influence = (rps_mismatch > MISMATCH_THRESHOLD) and 0.1 or 0.99
+	local torque_factor = (rps_mismatch > MISMATCH_THRESHOLD) and (TORQUE_FACTOR * 0.1) or TORQUE_FACTOR
+
 	if math.abs(external_rps) < math.abs(desired_rps) then
-		-- External RPS generates less flow than the desired fluid flow rate
-		-- The desired fluid flow rate will speed up the RPS
-
-		-- Increase RPS
-		target_rps = mid(desired_rps, external_rps)
-		-- target_rps = lerp(external_rps, desired_rps, TEST_VAL)
-		-- target_rps = desired_rps
-
-		-- Decrease flow
-		target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
-		-- target_flow_rate = lerp(desired_flow_rate, desired_pump_flow_rate, TEST_VAL)
-		-- target_flow_rate = desired_pump_flow_rate
-		--elseif desired_pump_flow_rate > desired_flow_rate then
+		target_rps = lerp(external_rps, desired_rps, hydraulic_influence)
+		target_flow_rate = lerp(desired_flow_rate, desired_pump_flow_rate, hydraulic_influence)
 	elseif math.abs(external_rps) > math.abs(desired_rps) then
-		-- External RPS generates more flow than the desired fluid flow rate
-		-- The desired fluid flow rate will slow down the RPS
-
-		-- Decrease RPS
-		target_rps = mid(desired_rps, external_rps)
-		-- target_rps = lerp(desired_rps, external_rps, TEST_VAL)
-		-- target_rps = external_rps
-
-		-- Increase flow
-		target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
-		-- target_flow_rate = lerp(desired_pump_flow_rate, desired_flow_rate, TEST_VAL)
-		-- target_flow_rate = desired_flow_rate
+		target_rps = lerp(desired_rps, external_rps, 1.0 - hydraulic_influence)
+		target_flow_rate = lerp(desired_pump_flow_rate, desired_flow_rate, 1.0 - hydraulic_influence)
 	end
 
-	-- Determine torque based on the flow rate difference (Stormworks pressure)
+	-- Calculate torque with load-adjusted factor
 	local delta_p = math.abs(desired_flow_rate)
-	local torque = MASS + delta_p * TORQUE_FACTOR
+	local torque = MASS + delta_p * torque_factor
 
 	-- Apply the momentum and check how effective the RPS change was
 	local rps_after = applyMomentum(target_rps, torque)
