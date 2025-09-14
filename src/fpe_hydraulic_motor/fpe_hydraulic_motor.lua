@@ -1,35 +1,6 @@
 -- Component details:
--- Type: hydraulic motor/pump
--- Converts fluid flow into RPS, and the other way around.
-
--- Research notes:
--- Displacement is constant for fixed-displacement motors, regardless of pressure.
--- Each revolution moves the same amount of liquid.
--- Examples:
--- Skid steer boom: 0.05 L/rev
--- Small/medium skid steer wheel: 0.1 to 0.5 L/rev
--- Large skid steer wheel: 1.0 L/rev
---
--- The pressure differential between the pump/motor's inlet and outlet
--- determines the torque.
--- Higher torque makes the pump more difficult to spin.
--- Higher torque gives the motor more power to spin its shaft.
---
--- The absolute system pressure does not affect the torque, speed or displacement.
--- The motor/pump operates the same at 10 atm and 60 atm.
---
--- Very high pressure differential can cause internal leakage (slip), causing less
--- flow to effectively turn the shaft.
--- Leakage is a volume flow rate (L/s).
--- Increased pressure differential forces more fluid through internal clearances,
--- causing more leakage.
--- Example:
--- 1 L/s flow rate; 10 atm; 5% leakage; 0.95 L/s converted to speed; 0.05 L/s passes through.
--- 1 L/s flow rate; 60 atm; 10% leakage; 0.90 L/s converted to speed; 0.10 L/s passes through.
---
--- Flow rate affects motor/pump speed.
--- Speed depends on displacement.
--- Speed = flow_rate / displacement
+-- Type: hydraulic motor
+-- Converts fluid flow into RPS, and the other way around (less efficiently).
 
 -- TODO: Add pressure-compensated flow valve, so that the constant absolute
 --       flow rate is guaranteed even if load or pressure changes:
@@ -37,19 +8,8 @@
 --       - value <= 0 : fully open, no restriction
 --       - value > 0: restrict L/s to value
 
--- NOTE: On how Stormworks implements pressure:
---       Pressure can be measured by checking how full a volume is.
---       Pressure is measured in atm, from 0 to 60.
---       For example, for a volume of 1 liter:
---       - 0% full   = 0.0 L = 0 atm
---       - 50% full  = 0.5 L = 30 atm
---       - 100% full = 1.0 L = 60 atm
---       This is verified to be correct; it matches with the in-game
---       tooltip display readouts.
-
-local DISPLACEMENT = 1.0 -- L per revolution
-local TORQUE_FACTOR = 100.0
-local MASS = 0.01 -- Base torque
+local DISPLACEMENT = 10.0 -- L per revolution
+local MASS = 2 -- Base torque, similar to small electric motor
 local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
 
 local TICK_RATE = 62 -- 62 ticks per second
@@ -196,7 +156,7 @@ function onTick(_)
 	local amount_b = getAmount(FLUID_VOLUME_B)
 
 	-- Determine the flow rate based on the difference between the two volumes
-	local desired_flow_rate = (amount_a - amount_b) * 0.5
+	local desired_flow_rate = (amount_a - amount_b) * (FLUID_VOLUME_SIZE * 2)
 	desired_flow_rate = desired_flow_rate * TICK_RATE -- L/sec
 
 	-- Determine the RPS based on the flow (speed = flow / displacement)
@@ -210,8 +170,7 @@ function onTick(_)
 	local target_rps = flowRateToRPS(target_flow_rate)
 
 	-- Apply the momentum and check how effective the RPS change was
-	local torque = 0.02
-	local rps_after = applyMomentum(target_rps, torque)
+	local rps_after = applyMomentum(target_rps, MASS)
 
 	-- Determine the final flow rate based on the updated RPS, so we can move
 	-- the correct amount of fluid
@@ -231,7 +190,7 @@ function onTick(_)
 			[7] = target_rps,
 			[8] = target_flow_rate,
 			[9] = 0, --delta_p,
-			[10] = torque,
+			[10] = MASS, -- torque
 			[11] = rps_after,
 			[12] = final_flow_rate,
 			[13] = final_flow_rate_per_tick,
