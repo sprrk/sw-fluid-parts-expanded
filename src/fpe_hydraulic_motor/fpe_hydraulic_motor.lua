@@ -4,12 +4,17 @@ local FILTERS_FLUIDS = require("../lib/fluid_filters").ALL_FLUIDS
 -- Type: hydraulic motor
 -- Converts fluid flow into RPS, and the other way around (less efficiently).
 
-local DISPLACEMENT = 10.0 -- L per revolution
-local MASS = 2 -- Base torque, similar to small electric motor
-local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
+-- Note: Based on in-game measurements:
+-- 0.01   fluid units per tick = 6.00   liter per second
+-- 0.01/6 fluid units per tick = 1.00   liter per second
+-- 1.00   fluid units per tick = 600.00 liter per second
+-- 1/600  fluid units per tick = 1.00   liter per second
+local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
 
-local TICK_RATE = 62 -- 62 ticks per second
-local SW_FLUID_SCALING = 60 / math.pi
+-- Note: Small impeller has a displacement of ~2.68
+local DISPLACEMENT = 2.5 -- L per revolution
+local MASS = 0.1 -- Base torque, similar to small impeller
+local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
 
 local RPS_SLOT = 0
 local FLUID_SLOT_A = 0
@@ -78,13 +83,13 @@ end
 ---@param rps number
 ---@return number flow_rate (L/sec)
 local function rpsToFlowRate(rps)
-	return (rps * DISPLACEMENT) / SW_FLUID_SCALING
+	return (rps * DISPLACEMENT)
 end
 
 ---@param flow_rate number (L/sec)
 ---@return number rps
 local function flowRateToRPS(flow_rate)
-	return (flow_rate / DISPLACEMENT) * SW_FLUID_SCALING
+	return flow_rate / DISPLACEMENT
 end
 
 local function initialize()
@@ -101,18 +106,16 @@ function onTick(_)
 	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
 	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
-	local flow_limit = component.getInputLogicSlotFloat(FLOW_LIMIT_SLOT)
-	if flow_limit then
-		flow_limit = math.abs(flow_limit / SW_FLUID_SCALING) -- Convert to L/tick
-	end
+	local flow_limit = component.getInputLogicSlotFloat(FLOW_LIMIT_SLOT) -- L/sec
+	flow_limit = math.abs(flow_limit)
 
 	local external_rps = getRPS()
 	local amount_a = getAmount(FLUID_VOLUME_A)
 	local amount_b = getAmount(FLUID_VOLUME_B)
 
 	-- Determine the flow rate based on the difference between the two volumes
-	local desired_flow_rate = (amount_a - amount_b) * (FLUID_VOLUME_SIZE * 2)
-	desired_flow_rate = desired_flow_rate * TICK_RATE -- L/sec
+	local desired_flow_rate = (amount_a - amount_b) * 0.5 -- L/tick
+	desired_flow_rate = desired_flow_rate * FLUID_TICK_TO_LITER_SECOND_RATIO -- L/sec
 
 	-- Determine the RPS based on the flow (speed = flow / displacement)
 	local desired_rps = flowRateToRPS(desired_flow_rate)
@@ -122,6 +125,8 @@ function onTick(_)
 
 	-- Find the midpoint for the two competing flow rates
 	local target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
+
+	-- Limit flow rate
 	if flow_limit > 0 and (flow_limit < math.abs(target_flow_rate)) then
 		if target_flow_rate > 0 then
 			target_flow_rate = flow_limit
@@ -138,7 +143,7 @@ function onTick(_)
 	-- Determine the final flow rate based on the updated RPS, so we can move
 	-- the correct amount of fluid
 	local final_flow_rate = rpsToFlowRate(rps_after) -- L/s
-	local final_flow_rate_per_tick = final_flow_rate / TICK_RATE -- L/tick
+	local final_flow_rate_per_tick = final_flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO -- L/tick
 	transferFluid(final_flow_rate_per_tick)
 
 	component.setOutputLogicSlotComposite(DATA_OUT_SLOT, {
@@ -157,7 +162,6 @@ function onTick(_)
 			[11] = rps_after,
 			[12] = final_flow_rate,
 			[13] = final_flow_rate_per_tick,
-			[14] = final_flow_rate * SW_FLUID_SCALING, -- True L/s as shown in-game
 		},
 	})
 end
