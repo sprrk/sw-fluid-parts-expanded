@@ -135,6 +135,13 @@ function onTick(_)
 		end
 	end
 
+	-- Limit flow rate if no fluid is available in source volume
+	if target_flow_rate > 0 and amount_a < target_flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO then
+		target_flow_rate = 0
+	elseif target_flow_rate < 0 and amount_b < math.abs(target_flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO) then
+		target_flow_rate = 0
+	end
+
 	local target_rps = flowRateToRPS(target_flow_rate)
 
 	-- Apply the momentum and check how effective the RPS change was
