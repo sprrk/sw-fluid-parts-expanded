@@ -142,6 +142,11 @@ function onTick(_)
 		target_flow_rate = 0
 	end
 
+	-- Stop flow if below minimum to prevent idle jitter
+	if math.abs(target_flow_rate) < 0.01 then
+		target_flow_rate = 0
+	end
+
 	local target_rps = flowRateToRPS(target_flow_rate)
 
 	-- Apply the momentum and check how effective the RPS change was
