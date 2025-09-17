@@ -1,3 +1,5 @@
+local FILTERS_FLUIDS = require("../lib/fluid_filters").ALL_FLUIDS
+
 -- Component details:
 -- Type: hydraulic motor
 -- Converts fluid flow into RPS, and the other way around (less efficiently).
@@ -18,24 +20,6 @@ local FLOW_LIMIT_SLOT = 0
 local FLUID_VOLUME_A = 0
 local FLUID_VOLUME_B = 1
 
-local FILTERS_FLUIDS = (
-	1 -- Water
-	+ 2 -- Diesel
-	+ 4 -- Jet
-	+ 32 -- Oil
-	+ 64 -- Sea water
-	+ 256 -- Slurry
-	+ 512 -- Sat. slurry
-)
-local FILTERS_GASES = (
-	8 -- O2
-	+ 16 -- CO2
-	+ 128 -- Steam
-	+ 1024 -- O2
-	+ 2048 -- N2
-	+ 4096 -- H2
-)
-
 local initialized = false
 
 ---@param a number
@@ -55,8 +39,7 @@ local function resolveFluidVolumeFlow(slot, volume)
 		1.0, -- flow_factor
 		false, -- is_one_way_in_to_slot
 		false, -- is_one_way_out_of_slot
-		-- FILTERS_FLUIDS,
-		FILTERS_FLUIDS + FILTERS_GASES,
+		FILTERS_FLUIDS,
 		-1 -- index_fluid_contents_transfer
 	)
 end
