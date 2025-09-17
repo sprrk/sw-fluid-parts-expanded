@@ -29,7 +29,7 @@ Displacement: 2.5 L per revolution
 		<logic_node orientation="4" label="RPS" type="2">
 			<position/>
 		</logic_node>
-    <logic_node label="Flow Limit" mode="1" type="1" description="Number input for limiting the absolute maximum flow (L/s). A value of 0 or lower disables the limit.">
+    <logic_node label="RPS Limit" mode="1" type="1" description="Number input that controls the hydraulic governor for limiting the absolute maximum RPS. A value of 0 or lower disables the limit.">
 			<position/>
 		</logic_node>
 		<logic_node label="Data Output" type="5" description="TEST_COMPOSITE_OUTPUT">

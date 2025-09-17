@@ -20,12 +20,13 @@ local RPS_SLOT = 0
 local FLUID_SLOT_A = 0
 local FLUID_SLOT_B = 1
 local DATA_OUT_SLOT = 0
-local FLOW_LIMIT_SLOT = 0
+local RPS_LIMIT_SLOT = 0
 
 local FLUID_VOLUME_A = 0
 local FLUID_VOLUME_B = 1
 
 local initialized = false
+local previous_target_rps = 0
 
 ---@param a number
 ---@param b number
@@ -106,8 +107,8 @@ function onTick(_)
 	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
 	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
-	local flow_limit = component.getInputLogicSlotFloat(FLOW_LIMIT_SLOT) -- L/sec
-	flow_limit = math.abs(flow_limit)
+	local rps_limit = component.getInputLogicSlotFloat(RPS_LIMIT_SLOT) -- L/sec
+	rps_limit = math.abs(rps_limit)
 
 	local external_rps = getRPS()
 	local amount_a = getAmount(FLUID_VOLUME_A)
@@ -126,15 +127,6 @@ function onTick(_)
 	-- Find the midpoint for the two competing flow rates
 	local target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
 
-	-- Limit flow rate
-	if flow_limit > 0 and (flow_limit < math.abs(target_flow_rate)) then
-		if target_flow_rate > 0 then
-			target_flow_rate = flow_limit
-		else
-			target_flow_rate = -flow_limit
-		end
-	end
-
 	-- Limit flow rate if no fluid is available in source volume
 	if target_flow_rate > 0 and amount_a < target_flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO then
 		target_flow_rate = 0
@@ -148,6 +140,31 @@ function onTick(_)
 	end
 
 	local target_rps = flowRateToRPS(target_flow_rate)
+
+	-- Governor: only brake when overspeed, never accelerate to reach limit
+	if rps_limit > 0 then
+		local governor_target_rps = target_rps -- Default: no change
+		local blend_factor = 0 -- 0 = no governor, 1 = full governor
+		local SMOOTH_STRENGTH = 0.0 -- 0 = no smoothing, 1 = lots of smoothing, less accurate
+
+		if external_rps > rps_limit then
+			-- Overspeeding forward - governor wants to limit to rps_limit
+			governor_target_rps = math.min(target_rps, rps_limit)
+			blend_factor = math.min(1, (external_rps - rps_limit) / (rps_limit * SMOOTH_STRENGTH))
+		elseif external_rps < -rps_limit then
+			-- Overspeeding backward - governor wants to limit to -rps_limit
+			governor_target_rps = math.max(target_rps, -rps_limit)
+			blend_factor = math.min(1, (-external_rps - rps_limit) / (rps_limit * SMOOTH_STRENGTH))
+		end
+
+		-- Blend between natural target and governor target
+		target_rps = target_rps * (1 - blend_factor) + governor_target_rps * blend_factor
+	end
+
+	-- Smooth target over time to reduce jitter
+	local smoothing_factor = 0.9995 -- 0 = instant, 1 = no change
+	target_rps = previous_target_rps * smoothing_factor + target_rps * (1 - smoothing_factor)
+	previous_target_rps = target_rps
 
 	-- Apply the momentum and check how effective the RPS change was
 	local rps_after = applyMomentum(target_rps, MASS)
