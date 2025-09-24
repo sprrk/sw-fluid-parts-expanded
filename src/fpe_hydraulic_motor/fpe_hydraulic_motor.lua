@@ -15,6 +15,7 @@ local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
 local DISPLACEMENT = 2.5 -- L per revolution
 local MASS = 0.01 -- Base torque
 local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
+local GOVERNOR_GAIN = 0.1
 
 local RPS_SLOT = 0
 local FLUID_SLOT_A = 0
@@ -27,7 +28,7 @@ local FLUID_VOLUME_B = 1
 local PI2 = math.pi * 2
 
 local initialized = false
-local previous_target_rps = 0
+local governor = 0
 
 ---@param a number
 ---@param b number
@@ -143,30 +144,21 @@ function onTick(_)
 
 	local target_rps = flowRateToRPS(target_flow_rate)
 
-	-- Governor: only brake when overspeed, never accelerate to reach limit
+	-- Apply hydraulic governor
 	if rps_limit > 0 then
-		local governor_target_rps = target_rps -- Default: no change
-		local blend_factor = 0 -- 0 = no governor, 1 = full governor
-		local SMOOTH_STRENGTH = 0.0 -- 0 = no smoothing, 1 = lots of smoothing, less accurate
-
-		if external_rps > rps_limit then
-			-- Overspeeding forward - governor wants to limit to rps_limit
-			governor_target_rps = math.min(target_rps, rps_limit)
-			blend_factor = math.min(1, (external_rps - rps_limit) / (rps_limit * SMOOTH_STRENGTH))
-		elseif external_rps < -rps_limit then
-			-- Overspeeding backward - governor wants to limit to -rps_limit
-			governor_target_rps = math.max(target_rps, -rps_limit)
-			blend_factor = math.min(1, (-external_rps - rps_limit) / (rps_limit * SMOOTH_STRENGTH))
+		local rps_error = 0
+		if external_rps > 0 then
+			rps_error = external_rps - rps_limit
+		elseif external_rps < 0 then
+			rps_error = external_rps + rps_limit
 		end
 
-		-- Blend between natural target and governor target
-		target_rps = target_rps * (1 - blend_factor) + governor_target_rps * blend_factor
-	end
+		governor = governor + rps_error * GOVERNOR_GAIN
 
-	-- Smooth target over time to reduce jitter
-	local smoothing_factor = 0.9995 -- 0 = instant, 1 = no change
-	target_rps = previous_target_rps * smoothing_factor + target_rps * (1 - smoothing_factor)
-	previous_target_rps = target_rps
+		target_rps = target_rps - governor
+	else
+		governor = 0
+	end
 
 	-- Apply the momentum and check how effective the RPS change was
 	local torque = MASS + (math.abs(delta_p) * DISPLACEMENT) / PI2
