@@ -146,18 +146,28 @@ function onTick(_)
 
 	-- Apply hydraulic governor
 	if rps_limit > 0 then
-		local rps_error = 0
-		if external_rps > 0 then
-			rps_error = external_rps - rps_limit
-		elseif external_rps < 0 then
-			rps_error = external_rps + rps_limit
+		-- Only reduce target_rps if the magnitude of external_rps exceeds the limit
+		if math.abs(external_rps) > rps_limit then
+			local rps_difference = math.abs(external_rps) - rps_limit
+			governor = governor + rps_difference * GOVERNOR_GAIN
+			-- Apply governor to reduce the target RPS, maintaining its original sign
+			if external_rps > 0 then
+				target_rps = target_rps - governor
+			else
+				target_rps = target_rps + governor -- Adding because governor is positive, and we want to reduce negative RPS
+			end
+		else
+			-- If external_rps is within limits, gradually reduce governor effect
+			governor = math.max(0, governor - GOVERNOR_GAIN)
+			-- Apply the reduced governor effect
+			if external_rps > 0 then
+				target_rps = target_rps - governor
+			else
+				target_rps = target_rps + governor
+			end
 		end
-
-		governor = governor + rps_error * GOVERNOR_GAIN
-
-		target_rps = target_rps - governor
 	else
-		governor = 0
+		governor = 0 -- Reset governor if no limit is set
 	end
 
 	-- Apply the momentum and check how effective the RPS change was
