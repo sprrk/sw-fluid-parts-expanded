@@ -13,7 +13,7 @@ local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
 
 -- Note: Small impeller has a displacement of ~2.68
 local DISPLACEMENT = 2.5 -- L per revolution
-local MASS = 0.1 -- Base torque, similar to small impeller
+local MASS = 0.01 -- Base torque
 local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
 
 local RPS_SLOT = 0
@@ -24,6 +24,7 @@ local RPS_LIMIT_SLOT = 0
 
 local FLUID_VOLUME_A = 0
 local FLUID_VOLUME_B = 1
+local PI2 = math.pi * 2
 
 local initialized = false
 local previous_target_rps = 0
@@ -113,6 +114,7 @@ function onTick(_)
 	local external_rps = getRPS()
 	local amount_a = getAmount(FLUID_VOLUME_A)
 	local amount_b = getAmount(FLUID_VOLUME_B)
+	local delta_p = (amount_a / FLUID_VOLUME_SIZE) - (amount_b / FLUID_VOLUME_SIZE)
 
 	-- Determine the flow rate based on the difference between the two volumes
 	local desired_flow_rate = (amount_a - amount_b) * 0.5 -- L/tick
@@ -167,7 +169,8 @@ function onTick(_)
 	previous_target_rps = target_rps
 
 	-- Apply the momentum and check how effective the RPS change was
-	local rps_after = applyMomentum(target_rps, MASS)
+	local torque = MASS + (math.abs(delta_p) * DISPLACEMENT) / PI2
+	local rps_after = applyMomentum(target_rps, torque)
 
 	-- Determine the final flow rate based on the updated RPS, so we can move
 	-- the correct amount of fluid
@@ -186,8 +189,8 @@ function onTick(_)
 			[6] = desired_pump_flow_rate,
 			[7] = target_rps,
 			[8] = target_flow_rate,
-			[9] = 0, --delta_p,
-			[10] = MASS, -- torque
+			[9] = delta_p,
+			[10] = torque,
 			[11] = rps_after,
 			[12] = final_flow_rate,
 			[13] = final_flow_rate_per_tick,
