@@ -10,12 +10,13 @@ local FILTERS_FLUIDS = require("../lib/fluid_filters").ALL_FLUIDS
 -- 1.00   fluid units per tick = 600.00 liter per second
 -- 1/600  fluid units per tick = 1.00   liter per second
 local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
+local PRESSURE_SCALE = 60
 
--- Note: Small impeller has a displacement of ~2.68
-local DISPLACEMENT = 2.5 -- L per revolution
-local MASS = 0.01 -- Base torque
-local FLUID_VOLUME_SIZE = 1 -- Liters; 1 full voxel is 15.625 L
-local GOVERNOR_GAIN = 0.1
+local DISPLACEMENT = 5.0 -- L per revolution
+local FLUID_VOLUME_SIZE = 1.0 -- Liters; 1 full voxel is 15.625 L
+local MASS = 5
+local INERTIA = 1
+local EFFICIENCY = 0.95
 
 local RPS_SLOT = 0
 local FLUID_SLOT_A = 0
@@ -25,16 +26,30 @@ local RPS_LIMIT_SLOT = 0
 
 local FLUID_VOLUME_A = 0
 local FLUID_VOLUME_B = 1
-local PI2 = math.pi * 2
 
 local initialized = false
-local governor = 0
 
 ---@param a number
 ---@param b number
 ---@return number midpoint The midpoint between A and B.
 local function mid(a, b)
 	return (a + b) * 0.5
+end
+
+---@param value number
+---@param min number
+---@param max number
+---@return number
+local function clamp(value, min, max)
+	return math.max(min, math.min(max, value))
+end
+
+-- @param a number
+-- @param b number
+-- @param t number
+-- @return number
+local function lerp(a, b, t)
+	return a + (b - a) * t
 end
 
 ---@param slot integer
@@ -101,101 +116,57 @@ local function initialize()
 	initialized = true
 end
 
-function onTick(_)
+function onTick(tick_time)
 	if not initialized then
 		initialize()
 	end
 
+	-- Move fluid in and out of the volumes
 	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
 	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
-	local rps_limit = component.getInputLogicSlotFloat(RPS_LIMIT_SLOT) -- L/sec
-	rps_limit = math.abs(rps_limit)
-
 	local external_rps = getRPS()
+
+	local rps_limit = component.getInputLogicSlotFloat(RPS_LIMIT_SLOT)
+	-- TODO: Implement RPS/flow limit
+
+	-- Determine flow rate based on external RPS
+	local flow_rate = rpsToFlowRate(external_rps) * tick_time * EFFICIENCY -- L/sec
+
+	-- Calculate delta P and equalization flow rate
 	local amount_a = getAmount(FLUID_VOLUME_A)
 	local amount_b = getAmount(FLUID_VOLUME_B)
-	local delta_p = (amount_a / FLUID_VOLUME_SIZE) - (amount_b / FLUID_VOLUME_SIZE)
+	local pressure_a, _ = component.fluidContentsGetPressure(FLUID_VOLUME_A)
+	local pressure_b, _ = component.fluidContentsGetPressure(FLUID_VOLUME_B)
+	local delta_p = (pressure_a / PRESSURE_SCALE) - (pressure_b / PRESSURE_SCALE)
 
-	-- Determine the flow rate based on the difference between the two volumes
-	local desired_flow_rate = (amount_a - amount_b) * 0.5 -- L/tick
-	desired_flow_rate = desired_flow_rate * FLUID_TICK_TO_LITER_SECOND_RATIO -- L/sec
+	-- Move fluid based on external RPS
+	transferFluid(flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO)
 
-	-- Determine the RPS based on the flow (speed = flow / displacement)
-	local desired_rps = flowRateToRPS(desired_flow_rate)
+	local torque = delta_p * DISPLACEMENT * EFFICIENCY
+	local angular_acceleration = torque / INERTIA
+	local delta_rps = angular_acceleration * tick_time
+	local target_rps = external_rps + delta_rps
+	applyMomentum(target_rps, MASS)
 
-	-- Determine the flow rate based on the external RPS
-	local desired_pump_flow_rate = rpsToFlowRate(external_rps) -- L/sec
-
-	-- Find the midpoint for the two competing flow rates
-	local target_flow_rate = mid(desired_flow_rate, desired_pump_flow_rate)
-
-	-- Limit flow rate if no fluid is available in source volume
-	if target_flow_rate > 0 and amount_a < target_flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO then
-		target_flow_rate = 0
-	elseif target_flow_rate < 0 and amount_b < math.abs(target_flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO) then
-		target_flow_rate = 0
-	end
-
-	-- Stop flow if below minimum to prevent idle jitter
-	if math.abs(target_flow_rate) < 0.01 then
-		target_flow_rate = 0
-	end
-
-	local target_rps = flowRateToRPS(target_flow_rate)
-
-	-- Apply hydraulic governor
-	if rps_limit > 0 then
-		-- Only reduce target_rps if the magnitude of external_rps exceeds the limit
-		if math.abs(external_rps) > rps_limit then
-			local rps_difference = math.abs(external_rps) - rps_limit
-			governor = governor + rps_difference * GOVERNOR_GAIN
-			-- Apply governor to reduce the target RPS, maintaining its original sign
-			if external_rps > 0 then
-				target_rps = target_rps - governor
-			else
-				target_rps = target_rps + governor -- Adding because governor is positive, and we want to reduce negative RPS
-			end
-		else
-			-- If external_rps is within limits, gradually reduce governor effect
-			governor = math.max(0, governor - GOVERNOR_GAIN)
-			-- Apply the reduced governor effect
-			if external_rps > 0 then
-				target_rps = target_rps - governor
-			else
-				target_rps = target_rps + governor
-			end
-		end
-	else
-		governor = 0 -- Reset governor if no limit is set
-	end
-
-	-- Apply the momentum and check how effective the RPS change was
-	local torque = MASS + (math.abs(delta_p) * DISPLACEMENT) / PI2
-	local rps_after = applyMomentum(target_rps, torque)
-
-	-- Determine the final flow rate based on the updated RPS, so we can move
-	-- the correct amount of fluid
-	local final_flow_rate = rpsToFlowRate(rps_after) -- L/s
-	local final_flow_rate_per_tick = final_flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO -- L/tick
-	transferFluid(final_flow_rate_per_tick)
+	-- Debug data:
+	local pump_mode = not ((external_rps > 0 and delta_p > 0) or (external_rps < 0 and delta_p < 0))
 
 	component.setOutputLogicSlotComposite(DATA_OUT_SLOT, {
-		bool_values = {},
+		bool_values = {
+			[1] = pump_mode,
+		},
 		float_values = {
 			[1] = external_rps,
 			[2] = amount_a,
 			[3] = amount_b,
-			[4] = desired_flow_rate,
-			[5] = desired_rps,
-			[6] = desired_pump_flow_rate,
+			[4] = pressure_a,
+			[5] = pressure_b,
+			[6] = flow_rate,
 			[7] = target_rps,
-			[8] = target_flow_rate,
+			[8] = delta_rps,
 			[9] = delta_p,
 			[10] = torque,
-			[11] = rps_after,
-			[12] = final_flow_rate,
-			[13] = final_flow_rate_per_tick,
 		},
 	})
 end
