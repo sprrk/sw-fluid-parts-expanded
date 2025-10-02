@@ -121,14 +121,7 @@ function onTick(tick_time)
 		initialize()
 	end
 
-	-- Move fluid in and out of the volumes
-	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
-	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
-
 	local external_rps = getRPS()
-
-	local rps_limit = component.getInputLogicSlotFloat(RPS_LIMIT_SLOT)
-	-- TODO: Implement RPS/flow limit
 
 	-- Determine flow rate based on external RPS
 	local flow_rate = rpsToFlowRate(external_rps) * tick_time * EFFICIENCY -- L/sec
@@ -143,11 +136,27 @@ function onTick(tick_time)
 	-- Move fluid based on external RPS
 	transferFluid(flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO)
 
+	-- Calculate target RPS based on pressure difference
 	local torque = delta_p * DISPLACEMENT * EFFICIENCY
 	local angular_acceleration = torque / INERTIA
 	local delta_rps = angular_acceleration * tick_time
 	local target_rps = external_rps + delta_rps
+
+	-- Apply RPS limit
+	local rps_limit = component.getInputLogicSlotFloat(RPS_LIMIT_SLOT)
+	if rps_limit ~= 0 then
+		if rps_limit > 0 then
+			target_rps = clamp(target_rps, 0, rps_limit)
+		elseif rps_limit < 0 then
+			target_rps = clamp(target_rps, rps_limit, 0)
+		end
+	end
+
 	applyMomentum(target_rps, MASS)
+
+	-- Move fluid in and out of the volumes
+	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
+	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
 	-- Debug data:
 	local pump_mode = not ((external_rps > 0 and delta_p > 0) or (external_rps < 0 and delta_p < 0))
