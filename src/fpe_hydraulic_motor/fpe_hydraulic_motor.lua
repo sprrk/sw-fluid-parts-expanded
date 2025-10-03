@@ -12,10 +12,10 @@ local FILTERS_FLUIDS = require("../lib/fluid_filters").ALL_FLUIDS
 local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
 local PRESSURE_SCALE = 60
 
-local DISPLACEMENT = 5.0 -- L per revolution
-local FLUID_VOLUME_SIZE = 1.0 -- Liters; 1 full voxel is 15.625 L
+local DISPLACEMENT = 10.0 -- L per revolution
+local FLUID_VOLUME_SIZE = 5.0 -- Liters; 1 full voxel is 15.625 L
 local MASS = 5
-local INERTIA = 1
+local INERTIA = 1.0
 local EFFICIENCY = 0.95
 
 local RPS_SLOT = 0
@@ -123,6 +123,10 @@ function onTick(tick_time)
 
 	local external_rps = getRPS()
 
+	-- Move fluid in and out of the volumes
+	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
+	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
+
 	-- Determine flow rate based on external RPS
 	local flow_rate = rpsToFlowRate(external_rps) * tick_time * EFFICIENCY -- L/sec
 
@@ -153,10 +157,6 @@ function onTick(tick_time)
 	end
 
 	applyMomentum(target_rps, MASS)
-
-	-- Move fluid in and out of the volumes
-	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
-	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
 	-- Debug data:
 	local pump_mode = not ((external_rps > 0 and delta_p > 0) or (external_rps < 0 and delta_p < 0))
