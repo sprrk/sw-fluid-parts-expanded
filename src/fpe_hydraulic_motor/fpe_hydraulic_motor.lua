@@ -133,24 +133,12 @@ function onTick(tick_time)
 
 	component.slotTorqueApplyMomentum(RPS_SLOT, MASS, target_rps)
 
-	-- Debug data:
-	local pump_mode = not ((external_rps > 0 and delta_p > 0) or (external_rps < 0 and delta_p < 0))
-
 	component.setOutputLogicSlotComposite(DATA_OUT_SLOT, {
-		bool_values = {
-			[1] = pump_mode,
-		},
 		float_values = {
 			[1] = external_rps,
-			[2] = amount_a,
-			[3] = amount_b,
-			[4] = pressure_a,
-			[5] = pressure_b,
-			[6] = (actual_transfer / tick_time) * FLUID_TICK_TO_LITER_SECOND_RATIO, -- Actual flow rate (L/sec)
-			[7] = target_rps,
-			[8] = delta_rps,
-			[9] = delta_p,
-			[10] = torque,
+			[2] = (actual_transfer / tick_time) * FLUID_TICK_TO_LITER_SECOND_RATIO, -- Actual flow rate (L/sec)
+			[3] = delta_p,
+			[4] = delta_rps,
 		},
 	})
 end
