@@ -28,27 +28,12 @@ local FLUID_VOLUME_B = 1
 
 local initialized = false
 
----@param a number
----@param b number
----@return number midpoint The midpoint between A and B.
-local function mid(a, b)
-	return (a + b) * 0.5
-end
-
 ---@param value number
 ---@param min number
 ---@param max number
 ---@return number
 local function clamp(value, min, max)
 	return math.max(min, math.min(max, value))
-end
-
--- @param a number
--- @param b number
--- @param t number
--- @return number
-local function lerp(a, b, t)
-	return a + (b - a) * t
 end
 
 ---@param slot integer
@@ -101,12 +86,6 @@ end
 ---@return number flow_rate (L/sec)
 local function rpsToFlowRate(rps)
 	return (rps * DISPLACEMENT)
-end
-
----@param flow_rate number (L/sec)
----@return number rps
-local function flowRateToRPS(flow_rate)
-	return flow_rate / DISPLACEMENT
 end
 
 local function initialize()
