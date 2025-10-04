@@ -38,10 +38,16 @@ Displacement: 5.0 L per revolution
 		<logic_node orientation="4" label="RPS" type="2">
 			<position/>
 		</logic_node>
-    <logic_node label="RPS Limit" mode="1" type="1" description="Number input that controls the hydraulic governor for limiting the maximum RPS. A value of 0 disables the limit. A negative value limits the RPS from that value to 0, and a positive value limits the RPS from 0 to that value.">
+    <logic_node label="RPS Limit" mode="1" type="1" description="Number input that controls the hydraulic governor for limiting the maximum RPS.
+A value of 0 disables the limit.
+A negative value limits the RPS from that value to 0, and a positive value limits the RPS from 0 to that value.">
 			<position/>
 		</logic_node>
-		<logic_node label="Data Output" type="5" description="TEST_COMPOSITE_OUTPUT">
+    <logic_node label="Data Output" type="5" description="Number values:
+1: RPS
+2: Flow rate (L/sec)
+3: Delta P (normalized)
+4: Delta RPS (acceleration)">
 			<position/>
 		</logic_node>
 	</logic_nodes>
