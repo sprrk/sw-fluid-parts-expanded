@@ -51,20 +51,6 @@ local function resolveFluidVolumeFlow(slot, volume)
 	)
 end
 
----@return number rps
-local function getRPS()
-	-- Note: Stormworks has no slotGetRPS function; this is the only way to get RPS
-	local rps, _ = component.slotTorqueApplyMomentum(RPS_SLOT, 0, 0)
-	return rps
-end
-
----@param index integer The index of the volume
----@return number
-local function getAmount(index)
-	local amount, _ = component.fluidContentsGetVolume(index)
-	return amount
-end
-
 ---@param amount number
 local function transferFluid(amount)
 	if amount > 0 then
@@ -72,20 +58,6 @@ local function transferFluid(amount)
 	elseif amount < 0 then
 		component.fluidContentsTransferVolume(FLUID_VOLUME_B, FLUID_VOLUME_A, -amount)
 	end
-end
-
----@param target_rps number
----@param force number
----@return number rps_after
-local function applyMomentum(target_rps, force)
-	local rps_after, _ = component.slotTorqueApplyMomentum(RPS_SLOT, force, target_rps)
-	return rps_after
-end
-
----@param rps number
----@return number flow_rate (L/sec)
-local function rpsToFlowRate(rps)
-	return (rps * DISPLACEMENT)
 end
 
 local function initialize()
@@ -99,21 +71,21 @@ function onTick(tick_time)
 		initialize()
 	end
 
-	local external_rps = getRPS()
+	local external_rps, _ = component.slotTorqueApplyMomentum(RPS_SLOT, 0, 0)
 
 	-- Move fluid in and out of the volumes
 	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
 	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
 	-- Calculate delta P and equalization flow rate
-	local amount_a = getAmount(FLUID_VOLUME_A)
-	local amount_b = getAmount(FLUID_VOLUME_B)
+	local amount_a, _ = component.fluidContentsGetVolume(FLUID_VOLUME_A)
+	local amount_b, _ = component.fluidContentsGetVolume(FLUID_VOLUME_B)
 	local pressure_a, _ = component.fluidContentsGetPressure(FLUID_VOLUME_A)
 	local pressure_b, _ = component.fluidContentsGetPressure(FLUID_VOLUME_B)
 	local delta_p = (pressure_a / PRESSURE_SCALE) - (pressure_b / PRESSURE_SCALE)
 
 	-- Move fluid based on external RPS
-	local desired_flow_rate = rpsToFlowRate(external_rps) -- L/sec
+	local desired_flow_rate = external_rps * DISPLACEMENT -- L/sec
 	local desired_transfer = (desired_flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO) * tick_time
 	local actual_transfer = 0
 
@@ -159,7 +131,7 @@ function onTick(tick_time)
 		end
 	end
 
-	applyMomentum(target_rps, MASS)
+	component.slotTorqueApplyMomentum(RPS_SLOT, MASS, target_rps)
 
 	-- Debug data:
 	local pump_mode = not ((external_rps > 0 and delta_p > 0) or (external_rps < 0 and delta_p < 0))
