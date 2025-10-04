@@ -13,10 +13,9 @@ local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
 local PRESSURE_SCALE = 60
 
 local DISPLACEMENT = 10.0 -- L per revolution
-local FLUID_VOLUME_SIZE = 5.0 -- Liters; 1 full voxel is 15.625 L
-local MASS = 5
-local INERTIA = 1.0
-local EFFICIENCY = 0.95
+local FLUID_VOLUME_SIZE = 6.0 -- Liters; 1 full voxel is 15.625 L
+local MASS = 2
+local VISCOUS_FRICTION = 0.001
 
 local RPS_SLOT = 0
 local FLUID_SLOT_A = 0
@@ -127,9 +126,6 @@ function onTick(tick_time)
 	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
 	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
-	-- Determine flow rate based on external RPS
-	local flow_rate = rpsToFlowRate(external_rps) * tick_time * EFFICIENCY -- L/sec
-
 	-- Calculate delta P and equalization flow rate
 	local amount_a = getAmount(FLUID_VOLUME_A)
 	local amount_b = getAmount(FLUID_VOLUME_B)
@@ -138,12 +134,40 @@ function onTick(tick_time)
 	local delta_p = (pressure_a / PRESSURE_SCALE) - (pressure_b / PRESSURE_SCALE)
 
 	-- Move fluid based on external RPS
-	transferFluid(flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO)
+	local desired_flow_rate = rpsToFlowRate(external_rps) -- L/sec
+	local desired_transfer = (desired_flow_rate / FLUID_TICK_TO_LITER_SECOND_RATIO) * tick_time
+	local actual_transfer = 0
 
-	-- Calculate target RPS based on pressure difference
-	local torque = delta_p * DISPLACEMENT * EFFICIENCY
-	local angular_acceleration = torque / INERTIA
-	local delta_rps = angular_acceleration * tick_time
+	if desired_transfer > 0 then -- Positive flow: A → B
+		local max_possible = math.min(amount_a, FLUID_VOLUME_SIZE - amount_b)
+		actual_transfer = math.min(desired_transfer, max_possible)
+	elseif desired_transfer < 0 then -- Negative flow: B → A
+		local max_possible = math.min(amount_b, FLUID_VOLUME_SIZE - amount_a)
+		actual_transfer = math.max(desired_transfer, -max_possible)
+	end
+
+	transferFluid(actual_transfer)
+
+	local flow_efficiency_ratio = 1.0
+	if math.abs(desired_transfer) > 0.001 then
+		flow_efficiency_ratio = clamp(actual_transfer / desired_transfer, 0, 1)
+	end
+
+	-- Calculate torque based on pressure difference
+	local torque = delta_p * DISPLACEMENT * flow_efficiency_ratio
+
+	-- Apply hydraulic lock resistance when flow is restricted
+	if flow_efficiency_ratio < 1 then
+		torque = torque - (external_rps * (1.0 - flow_efficiency_ratio))
+	end
+
+	-- Apply friction; faster = more friction
+	torque = torque - external_rps * VISCOUS_FRICTION
+
+	-- Calculate delta RPS, corrected for tick lag
+	local delta_rps = torque * tick_time
+
+	-- Calculate resulting target RPS
 	local target_rps = external_rps + delta_rps
 
 	-- Apply RPS limit
@@ -171,7 +195,7 @@ function onTick(tick_time)
 			[3] = amount_b,
 			[4] = pressure_a,
 			[5] = pressure_b,
-			[6] = flow_rate,
+			[6] = (actual_transfer / tick_time) * FLUID_TICK_TO_LITER_SECOND_RATIO, -- Actual flow rate (L/sec)
 			[7] = target_rps,
 			[8] = delta_rps,
 			[9] = delta_p,
