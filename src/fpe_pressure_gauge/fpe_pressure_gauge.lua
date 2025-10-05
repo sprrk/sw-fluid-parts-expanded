@@ -27,6 +27,17 @@ for i = 1, SEGMENTS do
 	SEGMENT_ROTATIONS[i] = matrix.rotationY(angle_rad)
 end
 
+---@class BandRange
+---@field first integer
+---@field last  integer
+
+---@type table<"green"|"red_1"|"red_2", BandRange>
+local band_cache = {
+	green = { first = 0, last = 0 },
+	red_1 = { first = 0, last = 0 },
+	red_2 = { first = 0, last = 0 },
+}
+
 ---@class PressureGaugeSettings
 ---@field pressure_range_start number
 ---@field pressure_range_end number
@@ -48,6 +59,17 @@ local settings = {
 	red_2_start = 0,
 	red_2_end = 0,
 }
+
+local function copy(t)
+	local result = {}
+	for k, v in pairs(t) do
+		result[k] = v
+	end
+	return result
+end
+
+---@type PressureGaugeSettings
+local old_settings = copy(settings)
 
 ---@param value number
 ---@param min number
@@ -99,19 +121,8 @@ local function pressureToSegment(p)
 end
 
 ---@param render_function fun(m: table)
----@param start_pressure number
----@param end_pressure   number
-local function renderSegments(render_function, start_pressure, end_pressure)
-	if start_pressure >= end_pressure then
-		return
-	end
-	if start_pressure >= settings.pressure_range_end then
-		return
-	end
-	-- TODO: Cache
-	local start_segment = pressureToSegment(start_pressure)
-	local end_segment = pressureToSegment(end_pressure)
-	for i = start_segment, end_segment do
+local function renderSegments(render_function, cache)
+	for i = cache.first, cache.last do
 		render_function(SEGMENT_ROTATIONS[i])
 	end
 end
@@ -129,11 +140,44 @@ local function readSettings()
 		settings.red_2_start = parseSetting(_settings, 7, 0, MAX_PRESSURE, 0)
 		settings.red_2_end = parseSetting(_settings, 8, 0, MAX_PRESSURE, 0)
 	end
+
+	-- Did any band setting change?
+	if
+		settings.green_start == old_settings.green_start
+		and settings.green_end == old_settings.green_end
+		and settings.red_1_start == old_settings.red_1_start
+		and settings.red_1_end == old_settings.red_1_end
+		and settings.red_2_start == old_settings.red_2_start
+		and settings.red_2_end == old_settings.red_2_end
+		and settings.pressure_range_end == old_settings.pressure_range_end
+	then
+		return -- Nothing changed, bail out quickly
+	end
+
+	-- Build ranges once per settings update
+	local function _clamp(n)
+		return math.max(1, math.min(n, SEGMENTS))
+	end
+	band_cache.green.first = _clamp(pressureToSegment(settings.green_start))
+	band_cache.green.last = _clamp(pressureToSegment(math.min(settings.green_end, settings.pressure_range_end)))
+
+	band_cache.red_1.first = _clamp(pressureToSegment(settings.red_1_start))
+	band_cache.red_1.last = _clamp(pressureToSegment(math.min(settings.red_1_end, settings.pressure_range_end)))
+
+	band_cache.red_2.first = _clamp(pressureToSegment(settings.red_2_start))
+	band_cache.red_2.last = _clamp(pressureToSegment(math.min(settings.red_2_end, settings.pressure_range_end)))
+
+	-- Remember for next comparison
+	for k, v in pairs(settings) do
+		old_settings[k] = v
+	end
 end
 
 function onTick(_)
 	if not initialized then
 		component.fluidContentsSetCapacity(FLUID_VOLUME_A, FLUID_VOLUME_SIZE)
+		readSettings()
+		initialized = true
 	end
 
 	-- Move fluid in/out of the buffer volume
@@ -159,8 +203,6 @@ function onTick(_)
 	end
 
 	component.setOutputLogicSlotFloat(PRESSURE_OUTPUT_SLOT, _pressure)
-
-	initialized = true
 end
 
 function onRender()
@@ -172,7 +214,7 @@ function onRender()
 	component.renderMesh0(matrix.rotationY(pressureToAngle(pressure)))
 
 	-- Green and red arcs
-	renderSegments(component.renderMesh1, settings.green_start, settings.green_end)
-	renderSegments(component.renderMesh2, settings.red_1_start, settings.red_1_end)
-	renderSegments(component.renderMesh2, settings.red_2_start, settings.red_2_end)
+	renderSegments(component.renderMesh1, band_cache.green)
+	renderSegments(component.renderMesh2, band_cache.red_1)
+	renderSegments(component.renderMesh2, band_cache.red_2)
 end
