@@ -15,10 +15,14 @@ local NEEDLE_SWEEP_ANGLE_DEG = 270
 local MAX_PRESSURE = 60
 local SEGMENTS = 24
 local DEGREES_PER_SEGMENT = NEEDLE_SWEEP_ANGLE_DEG / SEGMENTS
+local PRESSURE_QUANTIZATION = MAX_PRESSURE / NEEDLE_SWEEP_ANGLE_DEG
+local MAX_CACHE_INDEX = math.floor(MAX_PRESSURE / PRESSURE_QUANTIZATION)
 
 local initialized = false
 local pressure = 0
 local settings_read_ticks = 0
+
+local PRESSURE_CACHE = {}
 
 local SEGMENT_ROTATIONS = {}
 for i = 1, SEGMENTS do
@@ -109,6 +113,14 @@ local function pressureToAngle(p)
 	return math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5 + t * NEEDLE_SWEEP_ANGLE_DEG)
 end
 
+local function rebuildPressureCache()
+	for i = 0, MAX_CACHE_INDEX do
+		local p = PRESSURE_QUANTIZATION * i
+		local angle = pressureToAngle(p)
+		PRESSURE_CACHE[i] = matrix.rotationY(angle)
+	end
+end
+
 ---@param p number
 ---@return number
 local function pressureToSegment(p)
@@ -123,7 +135,10 @@ end
 ---@param render_function fun(m: table)
 local function renderSegments(render_function, cache)
 	for i = cache.first, cache.last do
-		render_function(SEGMENT_ROTATIONS[i])
+		local rotation = SEGMENT_ROTATIONS[i]
+		if rotation then
+			render_function(rotation)
+		end
 	end
 end
 
@@ -149,6 +164,7 @@ local function readSettings()
 		and settings.red_1_end == old_settings.red_1_end
 		and settings.red_2_start == old_settings.red_2_start
 		and settings.red_2_end == old_settings.red_2_end
+		and settings.pressure_range_start == old_settings.pressure_range_start
 		and settings.pressure_range_end == old_settings.pressure_range_end
 	then
 		return -- Nothing changed, bail out quickly
@@ -167,6 +183,14 @@ local function readSettings()
 	band_cache.red_2.first = _clamp(pressureToSegment(settings.red_2_start))
 	band_cache.red_2.last = _clamp(pressureToSegment(math.min(settings.red_2_end, settings.pressure_range_end)))
 
+	-- Rebuild cache if pressure range changed
+	if
+		settings.pressure_range_start ~= old_settings.pressure_range_start
+		or settings.pressure_range_end ~= old_settings.pressure_range_end
+	then
+		rebuildPressureCache()
+	end
+
 	-- Remember for next comparison
 	for k, v in pairs(settings) do
 		old_settings[k] = v
@@ -177,7 +201,7 @@ function onTick(_)
 	if not initialized then
 		component.fluidContentsSetCapacity(FLUID_VOLUME_A, FLUID_VOLUME_SIZE)
 		readSettings()
-		initialized = true
+		rebuildPressureCache()
 	end
 
 	-- Move fluid in/out of the buffer volume
@@ -203,6 +227,8 @@ function onTick(_)
 	end
 
 	component.setOutputLogicSlotFloat(PRESSURE_OUTPUT_SLOT, _pressure)
+
+	initialized = true
 end
 
 function onRender()
@@ -211,7 +237,8 @@ function onRender()
 	end
 
 	-- Needle
-	component.renderMesh0(matrix.rotationY(pressureToAngle(pressure)))
+	local index = math.floor(pressure / PRESSURE_QUANTIZATION + 0.5)
+	component.renderMesh0(PRESSURE_CACHE[index])
 
 	-- Green and red arcs
 	renderSegments(component.renderMesh1, band_cache.green)
