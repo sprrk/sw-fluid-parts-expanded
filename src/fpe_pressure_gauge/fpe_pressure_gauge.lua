@@ -142,19 +142,16 @@ local function renderSegments(render_function, cache)
 	end
 end
 
-local function readSettings()
-	local composite, composite_ok = component.getInputLogicSlotComposite(SETTINGS_SLOT)
-	if composite_ok then
-		local _settings = composite.float_values
-		settings.pressure_range_start = parseSetting(_settings, 1, 0, MAX_PRESSURE, 0)
-		settings.pressure_range_end = parseSetting(_settings, 2, 0, MAX_PRESSURE, MAX_PRESSURE)
-		settings.green_start = parseSetting(_settings, 3, 0, MAX_PRESSURE, 0)
-		settings.green_end = parseSetting(_settings, 4, 0, MAX_PRESSURE, 0)
-		settings.red_1_start = parseSetting(_settings, 5, 0, MAX_PRESSURE, 0)
-		settings.red_1_end = parseSetting(_settings, 6, 0, MAX_PRESSURE, 0)
-		settings.red_2_start = parseSetting(_settings, 7, 0, MAX_PRESSURE, 0)
-		settings.red_2_end = parseSetting(_settings, 8, 0, MAX_PRESSURE, 0)
-	end
+---@param composite_float_values table
+local function readSettings(composite_float_values)
+	settings.pressure_range_start = parseSetting(composite_float_values, 2, 0, MAX_PRESSURE, 0)
+	settings.pressure_range_end = parseSetting(composite_float_values, 3, 0, MAX_PRESSURE, MAX_PRESSURE)
+	settings.green_start = parseSetting(composite_float_values, 4, 0, MAX_PRESSURE, 0)
+	settings.green_end = parseSetting(composite_float_values, 5, 0, MAX_PRESSURE, 0)
+	settings.red_1_start = parseSetting(composite_float_values, 6, 0, MAX_PRESSURE, 0)
+	settings.red_1_end = parseSetting(composite_float_values, 7, 0, MAX_PRESSURE, 0)
+	settings.red_2_start = parseSetting(composite_float_values, 8, 0, MAX_PRESSURE, 0)
+	settings.red_2_end = parseSetting(composite_float_values, 9, 0, MAX_PRESSURE, 0)
 
 	-- Did any band setting change?
 	if
@@ -198,9 +195,12 @@ local function readSettings()
 end
 
 function onTick(_)
+	local composite, _ = component.getInputLogicSlotComposite(SETTINGS_SLOT)
+	local composite_float_values = composite.float_values
+
 	if not initialized then
 		component.fluidContentsSetCapacity(FLUID_VOLUME_A, FLUID_VOLUME_SIZE)
-		readSettings()
+		readSettings(composite_float_values)
 		rebuildPressureCache()
 	end
 
@@ -217,13 +217,20 @@ function onTick(_)
 	)
 
 	-- Read the pressure value
-	local _pressure, ok = component.fluidContentsGetPressure(FLUID_VOLUME_A)
-	pressure = ok and clamp(_pressure, 0, MAX_PRESSURE) or 0
+	local _pressure, pressure_get_ok = 0, false
+	if composite_float_values[1] == 0 then
+		-- Pressure reading via fluid slot
+		_pressure, pressure_get_ok = component.fluidContentsGetPressure(FLUID_VOLUME_A)
+	else
+		-- Pressure value override via composite
+		_pressure, pressure_get_ok = composite_float_values[1], true
+	end
+	pressure = pressure_get_ok and clamp(_pressure, 0, MAX_PRESSURE) or 0
 
 	-- Read settings every few ticks
 	settings_read_ticks = (settings_read_ticks + 1) % SETTINGS_READ_INTERVAL
 	if settings_read_ticks == 0 then
-		readSettings()
+		readSettings(composite_float_values)
 	end
 
 	component.setOutputLogicSlotFloat(PRESSURE_OUTPUT_SLOT, _pressure)
