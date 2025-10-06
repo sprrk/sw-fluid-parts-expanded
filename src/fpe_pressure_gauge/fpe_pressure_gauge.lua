@@ -80,7 +80,7 @@ local old_settings = copy(settings)
 ---@param max number
 ---@return number
 local function clamp(value, min, max)
-	return math.max(min, math.min(max, value))
+	return value < min and min or value > max and max or value
 end
 
 ---@param float_values table
