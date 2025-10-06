@@ -32,14 +32,14 @@ for i = 1, SEGMENTS do
 end
 
 ---@class BandRange
----@field first integer
----@field last  integer
+---@field first integer|nil
+---@field last integer|nil
 
 ---@type table<"green"|"red_1"|"red_2", BandRange>
 local band_cache = {
-	green = { first = 0, last = 0 },
-	red_1 = { first = 0, last = 0 },
-	red_2 = { first = 0, last = 0 },
+	green = { first = nil, last = nil },
+	red_1 = { first = nil, last = nil },
+	red_2 = { first = nil, last = nil },
 }
 
 ---@class PressureGaugeSettings
@@ -122,22 +122,24 @@ local function rebuildPressureCache()
 end
 
 ---@param p number
----@return number
+---@return number|nil
 local function pressureToSegment(p)
 	local span = settings.pressure_range_end - settings.pressure_range_start
 	if span <= 0 then
-		return 1
+		return nil
 	end
 	local t = clamp((p - settings.pressure_range_start) / span, 0, 1)
-	return clamp(math.floor(t * SEGMENTS) + 1, 1, SEGMENTS)
+	return clamp(math.floor(t * SEGMENTS) + 1, 0, SEGMENTS)
 end
 
 ---@param render_function fun(m: table)
 local function renderSegments(render_function, cache)
-	for i = cache.first, cache.last do
-		local rotation = SEGMENT_ROTATIONS[i]
-		if rotation then
-			render_function(rotation)
+	if cache.first ~= nil and cache.last ~= nil then
+		for i = cache.first, cache.last do
+			local rotation = SEGMENT_ROTATIONS[i]
+			if rotation then
+				render_function(rotation)
+			end
 		end
 	end
 end
@@ -168,17 +170,14 @@ local function readSettings(composite_float_values)
 	end
 
 	-- Build ranges once per settings update
-	local function _clamp(n)
-		return math.max(1, math.min(n, SEGMENTS))
-	end
-	band_cache.green.first = _clamp(pressureToSegment(settings.green_start))
-	band_cache.green.last = _clamp(pressureToSegment(math.min(settings.green_end, settings.pressure_range_end)))
+	band_cache.green.first = pressureToSegment(settings.green_start)
+	band_cache.green.last = pressureToSegment(math.min(settings.green_end, settings.pressure_range_end))
 
-	band_cache.red_1.first = _clamp(pressureToSegment(settings.red_1_start))
-	band_cache.red_1.last = _clamp(pressureToSegment(math.min(settings.red_1_end, settings.pressure_range_end)))
+	band_cache.red_1.first = pressureToSegment(settings.red_1_start)
+	band_cache.red_1.last = pressureToSegment(math.min(settings.red_1_end, settings.pressure_range_end))
 
-	band_cache.red_2.first = _clamp(pressureToSegment(settings.red_2_start))
-	band_cache.red_2.last = _clamp(pressureToSegment(math.min(settings.red_2_end, settings.pressure_range_end)))
+	band_cache.red_2.first = pressureToSegment(settings.red_2_start)
+	band_cache.red_2.last = pressureToSegment(math.min(settings.red_2_end, settings.pressure_range_end))
 
 	-- Rebuild cache if pressure range changed
 	if
