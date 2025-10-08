@@ -24,7 +24,7 @@ local initialized = false
 ---@param max number
 ---@return number
 local function clamp(value, min, max)
-	return math.max(min, math.min(max, value))
+	return value < min and min or value > max and max or value
 end
 
 ---@param slot integer
@@ -57,40 +57,29 @@ function onTick(_)
 	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
 	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
 
-	-- Read target pressure from input slot
-	local target_pressure, _ = component.getInputLogicSlotFloat(TARGET_PRESSURE_SLOT)
-	target_pressure = clamp(target_pressure, 0, PRESSURE_SCALE)
-
-	-- Current output pressure
-	local pressure_b, _ = component.fluidContentsGetPressure(FLUID_VOLUME_B)
-	pressure_b = clamp(pressure_b, 0, PRESSURE_SCALE)
-
-	-- Exit early if already at or above target
-	if pressure_b >= target_pressure then
+	local target_pressure = clamp(component.getInputLogicSlotFloat(TARGET_PRESSURE_SLOT), 0, PRESSURE_SCALE)
+	if clamp(component.fluidContentsGetPressure(FLUID_VOLUME_B), 0, PRESSURE_SCALE) >= target_pressure then
+		-- Exit early; already at or above target
 		return
 	end
 
-	-- Get source fluid level
-	local amount_a, _ = component.fluidContentsGetVolume(FLUID_VOLUME_A)
+	local amount_a = component.fluidContentsGetVolume(FLUID_VOLUME_A)
 	if amount_a <= 0 then
-		-- No fluid available to move
+		-- Exit early; no fluid available to move
 		return
 	end
 
-	local amount_b, _ = component.fluidContentsGetVolume(FLUID_VOLUME_B)
-
+	local amount_b = component.fluidContentsGetVolume(FLUID_VOLUME_B)
 	if amount_b > amount_a then
 		-- Exit early; regulator is one-way
 		return
 	end
 
-	-- Estimate litres needed to reach target pressure
-	local target_volume = (target_pressure / PRESSURE_SCALE) * FLUID_VOLUME_SIZE
-	local fluid_needed = target_volume - amount_b
-
-	-- Clamp to available fluid and space
-	local space_in_b = FLUID_VOLUME_SIZE - amount_b
-	local transfer_amount = math.min(fluid_needed, amount_a, space_in_b)
+	local transfer_amount = math.min(
+		(target_pressure / PRESSURE_SCALE) * FLUID_VOLUME_SIZE - amount_b,
+		amount_a,
+		FLUID_VOLUME_SIZE - amount_b
+	)
 
 	if transfer_amount > 0 then
 		component.fluidContentsTransferVolume(FLUID_VOLUME_A, FLUID_VOLUME_B, transfer_amount)
