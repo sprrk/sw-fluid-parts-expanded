@@ -7,8 +7,8 @@ local FILTERS = require("../lib/fluid_filters").ALL_FLUIDS + require("../lib/flu
 local SETTINGS_READ_INTERVAL = 60
 local NEEDLE_SWEEP_ANGLE_DEG = 270
 local MAX_FLOW = 600
-local FLOW_QUANTIZATION = MAX_FLOW / NEEDLE_SWEEP_ANGLE_DEG
-local MAX_CACHE_INDEX = math.floor((2 * MAX_FLOW) / FLOW_QUANTIZATION)
+local ANGLE_RESOLUTION_DEG = 1.0
+local MAX_CACHE_INDEX = math.floor(NEEDLE_SWEEP_ANGLE_DEG / ANGLE_RESOLUTION_DEG)
 local FLUID_VOLUME_SIZE = 6.0 -- Liters
 local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
 
@@ -93,22 +93,11 @@ local function resolveFluidVolumeFlow(slot, volume)
 	)
 end
 
----@param p number
----@return number
-local function flowToAngle(p)
-	local span = settings.flow_range_end - settings.flow_range_start
-	if span <= 0 then -- zero-width range: park needle at start
-		return math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5)
-	end
-	local t = clamp((p - settings.flow_range_start) / span, 0, 1)
-	return math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5 + t * NEEDLE_SWEEP_ANGLE_DEG)
-end
-
 local function rebuildFlowCache()
 	for i = 0, MAX_CACHE_INDEX do
-		local p = -MAX_FLOW + FLOW_QUANTIZATION * i
-		local angle = flowToAngle(p)
-		FLOW_CACHE[i] = matrix.rotationY(angle)
+		local angle_deg = i * ANGLE_RESOLUTION_DEG
+		local angle_rad = math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5 + angle_deg)
+		FLOW_CACHE[i] = matrix.rotationY(angle_rad)
 	end
 end
 
@@ -199,8 +188,14 @@ function onRender()
 		return
 	end
 
-	-- Needle
-	local index = math.floor((flow + MAX_FLOW) / FLOW_QUANTIZATION + 0.5)
-	index = clamp(index, 0, MAX_CACHE_INDEX)
+	-- Map flow to angle range
+	local span = settings.flow_range_end - settings.flow_range_start
+	if span <= 0 then
+		component.renderMesh0(FLOW_CACHE[0])
+		return
+	end
+
+	local t = clamp((flow - settings.flow_range_start) / span, 0, 1)
+	local index = math.floor(t * MAX_CACHE_INDEX + 0.5)
 	component.renderMesh0(FLOW_CACHE[index])
 end
