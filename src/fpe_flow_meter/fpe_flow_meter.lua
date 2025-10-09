@@ -1,0 +1,206 @@
+local FILTERS = require("../lib/fluid_filters").ALL_FLUIDS + require("../lib/fluid_filters").ALL_GASES
+
+-- Component details:
+-- Type: Flow meter
+-- Measures and displays fluid flow.
+
+local SETTINGS_READ_INTERVAL = 60
+local NEEDLE_SWEEP_ANGLE_DEG = 270
+local MAX_FLOW = 600
+local FLOW_QUANTIZATION = MAX_FLOW / NEEDLE_SWEEP_ANGLE_DEG
+local MAX_CACHE_INDEX = math.floor((2 * MAX_FLOW) / FLOW_QUANTIZATION)
+local FLUID_VOLUME_SIZE = 6.0 -- Liters
+local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
+
+-- Slot definitions
+local FLUID_SLOT_A = 1
+local FLUID_SLOT_B = 0
+local SETTINGS_SLOT = 0
+local FLOW_OUTPUT_SLOT = 0
+
+-- Fluid volume indices
+local FLUID_VOLUME_A = 0
+local FLUID_VOLUME_B = 1
+
+local initialized = false
+local flow = 0
+local settings_read_ticks = 0
+
+local FLOW_CACHE = {}
+
+---@class FlowMeterSettings
+---@field flow_range_start number
+---@field flow_range_end number
+---@field reverse boolean
+
+---@type FlowMeterSettings
+local settings = {
+	flow_range_start = -600,
+	flow_range_end = 600,
+	reverse = false,
+}
+
+local function copy(t)
+	local result = {}
+	for k, v in pairs(t) do
+		result[k] = v
+	end
+	return result
+end
+
+---@type FlowMeterSettings
+local old_settings = copy(settings)
+
+---@param value number
+---@param min number
+---@param max number
+---@return number
+local function clamp(value, min, max)
+	return value < min and min or value > max and max or value
+end
+
+---@param float_values table
+---@param index integer
+---@param min number
+---@param max number
+---@param default number
+---@return number
+local function parseSetting(float_values, index, min, max, default)
+	local value = float_values[index]
+	if value then
+		if default ~= 0 and value == 0 then
+			return default
+		else
+			return clamp(value, min, max)
+		end
+	else
+		return default
+	end
+end
+
+---@param slot integer
+---@param volume integer
+local function resolveFluidVolumeFlow(slot, volume)
+	component.slotFluidResolveFlow(
+		slot,
+		volume,
+		0.0, -- pump_pressure
+		1.0, -- flow_factor
+		false, -- is_one_way_in_to_slot
+		false, -- is_one_way_out_of_slot
+		FILTERS,
+		-1 -- index_fluid_contents_transfer
+	)
+end
+
+---@param p number
+---@return number
+local function flowToAngle(p)
+	local span = settings.flow_range_end - settings.flow_range_start
+	if span <= 0 then -- zero-width range: park needle at start
+		return math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5)
+	end
+	local t = clamp((p - settings.flow_range_start) / span, 0, 1)
+	return math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5 + t * NEEDLE_SWEEP_ANGLE_DEG)
+end
+
+local function rebuildFlowCache()
+	for i = 0, MAX_CACHE_INDEX do
+		local p = -MAX_FLOW + FLOW_QUANTIZATION * i
+		local angle = flowToAngle(p)
+		FLOW_CACHE[i] = matrix.rotationY(angle)
+	end
+end
+
+---@param amount number
+local function transferFluid(amount)
+	if amount > 0 then
+		component.fluidContentsTransferVolume(FLUID_VOLUME_A, FLUID_VOLUME_B, amount)
+	elseif amount < 0 then
+		component.fluidContentsTransferVolume(FLUID_VOLUME_B, FLUID_VOLUME_A, -amount)
+	end
+end
+
+---@param composite table
+local function readSettings(composite)
+	settings.flow_range_start = parseSetting(composite.float_values, 1, -MAX_FLOW, MAX_FLOW, -MAX_FLOW)
+	settings.flow_range_end = parseSetting(composite.float_values, 2, -MAX_FLOW, MAX_FLOW, MAX_FLOW)
+	settings.reverse = composite.bool_values[1] or false
+
+	-- Did any setting change?
+	if
+		settings.flow_range_start == old_settings.flow_range_start
+		and settings.flow_range_end == old_settings.flow_range_end
+		and settings.reverse == old_settings.reverse
+	then
+		return -- Nothing changed, bail out quickly
+	end
+
+	-- Rebuild cache if flow range changed
+	if
+		settings.flow_range_start ~= old_settings.flow_range_start
+		or settings.flow_range_end ~= old_settings.flow_range_end
+	then
+		rebuildFlowCache()
+	end
+
+	-- Remember for next comparison
+	for k, v in pairs(settings) do
+		old_settings[k] = v
+	end
+end
+
+local function initialize()
+	component.fluidContentsSetCapacity(FLUID_VOLUME_A, FLUID_VOLUME_SIZE)
+	component.fluidContentsSetCapacity(FLUID_VOLUME_B, FLUID_VOLUME_SIZE)
+	initialized = true
+end
+
+function onTick(_)
+	local composite, _ = component.getInputLogicSlotComposite(SETTINGS_SLOT)
+
+	if not initialized then
+		initialize()
+		readSettings(composite)
+		rebuildFlowCache()
+	end
+
+	-- Handle fluid flow through input and output slots
+	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
+	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
+
+	local amount_a, _ = component.fluidContentsGetVolume(FLUID_VOLUME_A)
+	local amount_b, _ = component.fluidContentsGetVolume(FLUID_VOLUME_B)
+
+	-- Calculate amount of fluid to transfer to equalize the two volumes
+	local transfer_amount = (amount_a - amount_b) * 0.5
+
+	transferFluid(transfer_amount)
+
+	-- Read settings every few ticks
+	settings_read_ticks = (settings_read_ticks + 1) % SETTINGS_READ_INTERVAL
+	if settings_read_ticks == 0 then
+		readSettings(composite)
+	end
+
+	-- Calculate the flow
+	flow = clamp(transfer_amount * FLUID_TICK_TO_LITER_SECOND_RATIO, -MAX_FLOW, MAX_FLOW)
+	if settings.reverse then
+		flow = -flow
+	end
+
+	component.setOutputLogicSlotFloat(FLOW_OUTPUT_SLOT, flow)
+
+	initialized = true
+end
+
+function onRender()
+	if not initialized then
+		return
+	end
+
+	-- Needle
+	local index = math.floor((flow + MAX_FLOW) / FLOW_QUANTIZATION + 0.5)
+	index = clamp(index, 0, MAX_CACHE_INDEX)
+	component.renderMesh0(FLOW_CACHE[index])
+end
