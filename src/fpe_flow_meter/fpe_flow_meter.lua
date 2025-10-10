@@ -9,8 +9,8 @@ local NEEDLE_SWEEP_ANGLE_DEG = 270
 local MAX_FLOW = 600
 local ANGLE_RESOLUTION_DEG = 1.0
 local MAX_CACHE_INDEX = math.floor(NEEDLE_SWEEP_ANGLE_DEG / ANGLE_RESOLUTION_DEG)
-local FLUID_VOLUME_SIZE = 6.0 -- Liters
-local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
+local FLUID_VOLUME_SIZE = 1.0 -- Liters
+local FLUID_TICK_TO_LITER_SECOND_RATIO = 1186 -- No clue why, though.
 
 -- Slot definitions
 local FLUID_SLOT_A = 1
@@ -19,8 +19,7 @@ local SETTINGS_SLOT = 0
 local FLOW_OUTPUT_SLOT = 0
 
 -- Fluid volume indices
-local FLUID_VOLUME_A = 0
-local FLUID_VOLUME_B = 1
+local FLUID_VOLUME_A = 2
 
 local initialized = false
 local flow = 0
@@ -78,35 +77,11 @@ local function parseSetting(float_values, index, min, max, default)
 	end
 end
 
----@param slot integer
----@param volume integer
-local function resolveFluidVolumeFlow(slot, volume)
-	component.slotFluidResolveFlow(
-		slot,
-		volume,
-		0.0, -- pump_pressure
-		1.0, -- flow_factor
-		false, -- is_one_way_in_to_slot
-		false, -- is_one_way_out_of_slot
-		FILTERS,
-		-1 -- index_fluid_contents_transfer
-	)
-end
-
 local function rebuildFlowCache()
 	for i = 0, MAX_CACHE_INDEX do
 		local angle_deg = i * ANGLE_RESOLUTION_DEG
 		local angle_rad = math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5 + angle_deg)
 		FLOW_CACHE[i] = matrix.rotationY(angle_rad)
-	end
-end
-
----@param amount number
-local function transferFluid(amount)
-	if amount > 0 then
-		component.fluidContentsTransferVolume(FLUID_VOLUME_A, FLUID_VOLUME_B, amount)
-	elseif amount < 0 then
-		component.fluidContentsTransferVolume(FLUID_VOLUME_B, FLUID_VOLUME_A, -amount)
 	end
 end
 
@@ -141,11 +116,10 @@ end
 
 local function initialize()
 	component.fluidContentsSetCapacity(FLUID_VOLUME_A, FLUID_VOLUME_SIZE)
-	component.fluidContentsSetCapacity(FLUID_VOLUME_B, FLUID_VOLUME_SIZE)
 	initialized = true
 end
 
-function onTick(_)
+function onTick(tick_time)
 	local composite, _ = component.getInputLogicSlotComposite(SETTINGS_SLOT)
 
 	if not initialized then
@@ -154,17 +128,15 @@ function onTick(_)
 		rebuildFlowCache()
 	end
 
-	-- Handle fluid flow through input and output slots
-	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
-	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
-
-	local amount_a, _ = component.fluidContentsGetVolume(FLUID_VOLUME_A)
-	local amount_b, _ = component.fluidContentsGetVolume(FLUID_VOLUME_B)
-
-	-- Calculate amount of fluid to transfer to equalize the two volumes
-	local transfer_amount = (amount_a - amount_b) * 0.5
-
-	transferFluid(transfer_amount)
+	component.slotFluidResolveFlowToSlot(
+		FLUID_SLOT_A,
+		FLUID_SLOT_B,
+		0, -- pump_pressure
+		1, -- flow_factor
+		false,
+		FILTERS,
+		FLUID_VOLUME_A
+	)
 
 	-- Read settings every few ticks
 	settings_read_ticks = (settings_read_ticks + 1) % SETTINGS_READ_INTERVAL
@@ -172,8 +144,9 @@ function onTick(_)
 		readSettings(composite)
 	end
 
-	-- Calculate the flow
-	flow = clamp(transfer_amount * FLUID_TICK_TO_LITER_SECOND_RATIO, -MAX_FLOW, MAX_FLOW)
+	-- Calculate the flow for the display
+	local amount, _ = component.fluidContentsGetVolume(FLUID_VOLUME_A)
+	flow = clamp((amount / tick_time) * FLUID_TICK_TO_LITER_SECOND_RATIO, -MAX_FLOW, MAX_FLOW)
 	if settings.reverse then
 		flow = -flow
 	end
