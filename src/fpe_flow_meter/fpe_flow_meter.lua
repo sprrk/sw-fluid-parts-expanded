@@ -10,7 +10,9 @@ local MAX_FLOW = 600
 local ANGLE_RESOLUTION_DEG = 1.0
 local MAX_CACHE_INDEX = math.floor(NEEDLE_SWEEP_ANGLE_DEG / ANGLE_RESOLUTION_DEG)
 local FLUID_VOLUME_SIZE = 1.0 -- Liters
-local FLUID_TICK_TO_LITER_SECOND_RATIO = 1186 -- No clue why, though.
+local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
+-- NOTE: In another test setup, the FLUID_TICK_TO_LITER_SECOND_RATIO was 1186,
+--       no clue why, though.
 
 -- Slot definitions
 local FLUID_SLOT_A = 1
