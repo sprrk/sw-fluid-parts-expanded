@@ -65,16 +65,27 @@ end
 
 local WHEEL_CACHE = {}
 local function rebuildWheelCache()
+	local function createWheelTransform(wheel_index, angle_deg)
+		local angle_rad = math.rad(angle_deg)
+		local rot = matrix.rotationX(angle_rad)
+		local pos = matrix.translation(WHEEL_POSITIONS[wheel_index], COUNTER_WHEEL_Y, COUNTER_WHEEL_Z)
+		return matrix.multiply(pos, rot)
+	end
+
 	for wheel_index = 1, WHEEL_COUNT do
 		WHEEL_CACHE[wheel_index] = {}
-		-- 0° … 360° to cover all 10 digits (0-9)
-		local steps = math.floor(360 / WHEEL_RESOLUTION_DEG) + 1
-		for step = 0, steps - 1 do
-			local angle_deg = step * WHEEL_RESOLUTION_DEG
-			local angle_rad = math.rad(angle_deg)
-			local rot = matrix.rotationX(angle_rad)
-			local pos = matrix.translation(WHEEL_POSITIONS[wheel_index], COUNTER_WHEEL_Y, COUNTER_WHEEL_Z)
-			WHEEL_CACHE[wheel_index][step] = matrix.multiply(pos, rot)
+
+		if wheel_index == 1 then
+			-- White wheel: smooth interpolation
+			local steps = math.floor(360 / WHEEL_RESOLUTION_DEG) + 1
+			for step = 0, steps - 1 do
+				WHEEL_CACHE[wheel_index][step] = createWheelTransform(wheel_index, step * WHEEL_RESOLUTION_DEG)
+			end
+		else
+			-- Black wheels: snap to exact digits (10 positions)
+			for digit = 0, 9 do
+				WHEEL_CACHE[wheel_index][digit] = createWheelTransform(wheel_index, digit * DEGREES_PER_DIGIT)
+			end
 		end
 	end
 end
@@ -150,13 +161,24 @@ function onRender()
 	for wheel_index = 1, WHEEL_COUNT do
 		local scale = 10 ^ (wheel_index - 2) -- 0.1, 1, 10, 100, 1000
 		local digit = (value / scale) % 10 -- 0.0 .. 9.999
-		local step_f = (digit * DEGREES_PER_DIGIT) / WHEEL_RESOLUTION_DEG
-		local step = math.floor(step_f + 0.5) % #WHEEL_CACHE[wheel_index]
-		local mesh_index = WHEEL_MESH_INDICES[wheel_index]
-		if mesh_index == 1 then
-			component.renderMesh1(WHEEL_CACHE[wheel_index][step])
+
+		local cache_index
+		if wheel_index == 1 then
+			-- White wheel: smooth interpolation
+			local step_f = (digit * DEGREES_PER_DIGIT) / WHEEL_RESOLUTION_DEG
+			cache_index = math.floor(step_f + 0.5) % #WHEEL_CACHE[wheel_index]
 		else
-			component.renderMesh2(WHEEL_CACHE[wheel_index][step])
+			-- Black wheels: snap to current digit
+			cache_index = math.floor(digit) % 10
+		end
+
+		local mesh_index = WHEEL_MESH_INDICES[wheel_index]
+		local transform = WHEEL_CACHE[wheel_index][cache_index]
+
+		if mesh_index == 1 then
+			component.renderMesh1(transform)
+		else
+			component.renderMesh2(transform)
 		end
 	end
 end
