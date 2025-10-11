@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<definition name="Flow Meter" category="9" type="66" mass="3" value="20" flags="16384" tags="FPE,mod" mesh_data_name="fpe_flow_meter.mesh" mesh_0_name="fpe_flow_meter_dial.mesh" constraint_axis="1" max_motor_force="100" max_motor_speed="10" cable_radius="16" cable_length="-431602080" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="200" force_emitter_max_vector="1" engine_max_force="1000" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" door_lower_limit="-1" door_upper_limit="1" dynamic_max_rotation="3.141593" magnet_force="1" pump_pressure="0.01" torque_component_type="1" lua_filename="fpe_flow_meter.lua">
-  <tooltip_properties short_description="A flow meter with an analog dial.
+<definition name="Flow Meter" category="9" type="66" mass="3" value="20" flags="16384" tags="FPE,mod" mesh_data_name="fpe_flow_meter.mesh" mesh_0_name="fpe_flow_meter_dial.mesh" mesh_1_name="fpe_flow_meter_counter_wheel_black.mesh" mesh_2_name="fpe_flow_meter_counter_wheel_white.mesh" constraint_axis="1" max_motor_force="100" max_motor_speed="10" cable_radius="16" cable_length="-431602080" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="200" force_emitter_max_vector="1" engine_max_force="1000" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" door_lower_limit="-1" door_upper_limit="1" dynamic_max_rotation="3.141593" magnet_force="1" pump_pressure="0.01" torque_component_type="1" lua_filename="fpe_flow_meter.lua">
+  <tooltip_properties short_description="A flow meter with an analog dial and an odometer.
 
 Flow rate limits: -600 L/s to 600 L/s"/>
 	<sfx_datas/>
@@ -35,12 +35,16 @@ Flow rate limits: -600 L/s to 600 L/s"/>
     <logic_node label="Flow" type="1" description="The current flow in liters per second.">
 			<position/>
 		</logic_node>
+    <logic_node label="Odometer" type="1" description="The amount of fluid (L) that has passed through the meter since last reset.">
+			<position/>
+		</logic_node>
     <logic_node label="Settings" mode="1" type="5" description="Number input values:
 1: Flow range start. Default: -600
 2: Flow range end. Default: 600
 
 Boolean input values:
 1: Reverse direction. Default: false
+2: Reset odometer.
 ">
 			<position/>
 		</logic_node>
@@ -49,6 +53,10 @@ Boolean input values:
 	<voxels>
 		<voxel flags="1" buoy_pipes="63">
 			<position/>
+			<physics_shape_rotation/>
+		</voxel>
+		<voxel flags="0" physics_shape="0">
+			<position x="0" y="1" z="0"/>
 			<physics_shape_rotation/>
 		</voxel>
 	</voxels>
