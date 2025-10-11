@@ -6,13 +6,11 @@ local FILTERS = require("../lib/fluid_filters").ALL_FLUIDS + require("../lib/flu
 
 local SETTINGS_READ_INTERVAL = 60
 local NEEDLE_SWEEP_ANGLE_DEG = 270
-local MAX_FLOW = 600
+local DEFAULT_SCALE = 100.0
 local ANGLE_RESOLUTION_DEG = 1.0
 local MAX_CACHE_INDEX = math.floor(NEEDLE_SWEEP_ANGLE_DEG / ANGLE_RESOLUTION_DEG)
 local FLUID_VOLUME_SIZE = 1.0 -- Liters
-local FLUID_TICK_TO_LITER_SECOND_RATIO = 600
--- NOTE: In another test setup, the FLUID_TICK_TO_LITER_SECOND_RATIO was 1186,
---       no clue why, though.
+local FLUID_TICK_TO_LITER_SECOND_RATIO = 600 -- NOTE: This is only valid for liquids.
 
 -- Slot definitions
 local FLUID_SLOT_A = 1
@@ -42,27 +40,12 @@ local odometer_liters = 0.0 -- Total volume passed since last reset
 local FLOW_CACHE = {}
 
 ---@class FlowMeterSettings
----@field flow_range_start number
----@field flow_range_end number
----@field reverse boolean
+---@field scale number
 
 ---@type FlowMeterSettings
 local settings = {
-	flow_range_start = -600,
-	flow_range_end = 600,
-	reverse = false,
+	scale = 1.0,
 }
-
-local function copy(t)
-	local result = {}
-	for k, v in pairs(t) do
-		result[k] = v
-	end
-	return result
-end
-
----@type FlowMeterSettings
-local old_settings = copy(settings)
 
 ---@param value number
 ---@param min number
@@ -70,25 +53,6 @@ local old_settings = copy(settings)
 ---@return number
 local function clamp(value, min, max)
 	return value < min and min or value > max and max or value
-end
-
----@param float_values table
----@param index integer
----@param min number
----@param max number
----@param default number
----@return number
-local function parseSetting(float_values, index, min, max, default)
-	local value = float_values[index]
-	if value then
-		if default ~= 0 and value == 0 then
-			return default
-		else
-			return clamp(value, min, max)
-		end
-	else
-		return default
-	end
 end
 
 local function rebuildFlowCache()
@@ -115,35 +79,6 @@ local function rebuildWheelCache()
 	end
 end
 
----@param composite table
-local function readSettings(composite)
-	settings.flow_range_start = parseSetting(composite.float_values, 1, -MAX_FLOW, MAX_FLOW, -MAX_FLOW)
-	settings.flow_range_end = parseSetting(composite.float_values, 2, -MAX_FLOW, MAX_FLOW, MAX_FLOW)
-	settings.reverse = composite.bool_values[1] or false
-
-	-- Did any setting change?
-	if
-		settings.flow_range_start == old_settings.flow_range_start
-		and settings.flow_range_end == old_settings.flow_range_end
-		and settings.reverse == old_settings.reverse
-	then
-		return -- Nothing changed, bail out quickly
-	end
-
-	-- Rebuild cache if flow range changed
-	if
-		settings.flow_range_start ~= old_settings.flow_range_start
-		or settings.flow_range_end ~= old_settings.flow_range_end
-	then
-		rebuildFlowCache()
-	end
-
-	-- Remember for next comparison
-	for k, v in pairs(settings) do
-		old_settings[k] = v
-	end
-end
-
 local function initialize()
 	component.fluidContentsSetCapacity(FLUID_VOLUME_A, FLUID_VOLUME_SIZE)
 	initialized = true
@@ -154,7 +89,6 @@ function onTick(tick_time)
 
 	if not initialized then
 		initialize()
-		readSettings(composite)
 		rebuildFlowCache()
 		rebuildWheelCache()
 	end
@@ -172,18 +106,25 @@ function onTick(tick_time)
 	-- Read settings every few ticks
 	settings_read_ticks = (settings_read_ticks + 1) % SETTINGS_READ_INTERVAL
 	if settings_read_ticks == 0 then
-		readSettings(composite)
+		local _scale = composite.float_values[1]
+		if _scale > 0 then
+			settings.scale = _scale
+		else
+			settings.scale = DEFAULT_SCALE
+		end
 	end
 
 	-- Calculate the flow for the display
 	local amount, _ = component.fluidContentsGetVolume(FLUID_VOLUME_A)
-	flow = clamp((amount / tick_time) * FLUID_TICK_TO_LITER_SECOND_RATIO, -MAX_FLOW, MAX_FLOW)
-	if settings.reverse then
+	flow = (amount / tick_time) * FLUID_TICK_TO_LITER_SECOND_RATIO
+
+	if composite.bool_values[1] then
+		-- Reverse mode
 		flow = -flow
 	end
 
 	-- Update odometer
-	odometer_liters = odometer_liters + amount
+	odometer_liters = odometer_liters + (flow / 60)
 	if composite.bool_values[2] then
 		odometer_liters = 0.0
 	end
@@ -200,13 +141,7 @@ function onRender()
 	end
 
 	-- Map flow to angle range
-	local span = settings.flow_range_end - settings.flow_range_start
-	if span <= 0 then
-		component.renderMesh0(FLOW_CACHE[0])
-		return
-	end
-
-	local t = clamp((flow - settings.flow_range_start) / span, 0, 1)
+	local t = clamp(flow / settings.scale, 0, 1)
 	local index = math.floor(t * MAX_CACHE_INDEX + 0.5)
 	component.renderMesh0(FLOW_CACHE[index])
 
