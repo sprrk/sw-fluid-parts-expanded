@@ -5,8 +5,8 @@
       <author>Blender User</author>
       <authoring_tool>Blender 4.5.3 LTS commit date:2025-09-08, commit time:12:46, hash:67807e1800cc</authoring_tool>
     </contributor>
-    <created>2025-10-11T14:18:58</created>
-    <modified>2025-10-11T14:18:58</modified>
+    <created>2025-10-11T18:29:24</created>
+    <modified>2025-10-11T18:29:24</modified>
     <unit name="meter" meter="1"/>
     <up_axis>Z_UP</up_axis>
   </asset>
@@ -28,7 +28,7 @@
         </technique>
       </profile_COMMON>
     </effect>
-    <effect id="white_002-effect">
+    <effect id="off_white-effect">
       <profile_COMMON>
         <technique sid="common">
           <lambert>
@@ -36,7 +36,7 @@
               <color sid="emission">0 0 0 1</color>
             </emission>
             <diffuse>
-              <color sid="diffuse">1 1 1 1</color>
+              <color sid="diffuse">0.85 0.85 0.85 1</color>
             </diffuse>
             <index_of_refraction>
               <float sid="ior">1.5</float>
@@ -51,8 +51,8 @@
     <material id="dark_gray_005-material" name="dark_gray.005">
       <instance_effect url="#dark_gray_005-effect"/>
     </material>
-    <material id="white_002-material" name="white.002">
-      <instance_effect url="#white_002-effect"/>
+    <material id="off_white-material" name="off_white">
+      <instance_effect url="#off_white-effect"/>
     </material>
   </library_materials>
   <library_geometries>
@@ -96,7 +96,7 @@
           <input semantic="TEXCOORD" source="#Circle_001-mesh-map-0" offset="2" set="0"/>
           <p>8 0 0 18 0 1 15 0 2 7 1 3 17 1 4 14 1 5 9 2 6 13 2 7 6 2 8 8 3 9 12 3 10 5 3 11 7 4 12 11 4 13 4 4 14 6 5 15 10 5 16 3 5 17 19 6 18 5 6 19 12 6 20 1 7 21 11 7 22 18 7 23 17 8 24 3 8 25 10 8 26 2 9 27 16 9 28 9 9 29 8 98 294 1 98 295 18 98 296 7 99 297 0 99 298 17 99 299 9 100 300 16 100 301 13 100 302 8 101 303 15 101 304 12 101 305 7 102 306 14 102 307 11 102 308 6 103 309 13 103 310 10 103 311 19 104 312 2 104 313 5 104 314 1 105 315 4 105 316 11 105 317 17 106 318 0 106 319 3 106 320 2 107 321 19 107 322 16 107 323</p>
         </triangles>
-        <triangles material="white_002-material" count="161">
+        <triangles material="off_white-material" count="161">
           <input semantic="VERTEX" source="#Circle_001-mesh-vertices" offset="0"/>
           <input semantic="NORMAL" source="#Circle_001-mesh-normals" offset="1"/>
           <input semantic="TEXCOORD" source="#Circle_001-mesh-map-0" offset="2" set="0"/>
@@ -115,7 +115,7 @@
               <instance_material symbol="dark_gray_005-material" target="#dark_gray_005-material">
                 <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
               </instance_material>
-              <instance_material symbol="white_002-material" target="#white_002-material">
+              <instance_material symbol="off_white-material" target="#off_white-material">
                 <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
               </instance_material>
             </technique_common>

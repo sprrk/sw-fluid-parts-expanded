@@ -28,9 +28,9 @@ local COUNTER_WHEEL_Z = 0.06
 local ODOMETER_PERSISTENCE_ID = "odometer"
 local WHEEL_RESOLUTION_DEG = 9
 local DEGREES_PER_DIGIT = 36
-local WHEEL_COUNT = 5
-local WHEEL_POSITIONS = { -0.03, -0.015, 0, 0.015, 0.03 } -- From right (0.1 L) to left (1000 L)
-local WHEEL_MESH_INDICES = { 2, 1, 1, 1, 1 } -- White wheel first, then black wheels
+local WHEEL_COUNT = 6
+local WHEEL_POSITIONS = { -0.0375, -0.0225, -0.0075, 0.0075, 0.0225, 0.0375 } -- From right (0.1 L) to left (1000 L)
+local WHEEL_MESH_INDICES = { 2, 1, 1, 1, 1, 1 } -- White wheel first, then black wheels
 
 local initialized = false
 local flow = 0
@@ -151,7 +151,7 @@ function onRender()
 		return
 	end
 
-	-- Map flow to angle range
+	-- Render needle
 	local t = clamp(flow / settings.scale, 0, 1)
 	local index = math.floor(t * MAX_CACHE_INDEX + 0.5)
 	component.renderMesh0(FLOW_CACHE[index])
@@ -159,7 +159,7 @@ function onRender()
 	-- Render odometer wheels
 	local value = odometer_liters
 	for wheel_index = 1, WHEEL_COUNT do
-		local scale = 10 ^ (wheel_index - 2) -- 0.1, 1, 10, 100, 1000
+		local scale = 10 ^ (wheel_index - 2) -- 0.1, 1, 10, 100, 1000, 10000
 		local digit = (value / scale) % 10 -- 0.0 .. 9.999
 
 		local cache_index
