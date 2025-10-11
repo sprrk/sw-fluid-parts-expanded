@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<definition name="Pressure Gauge" category="6" type="66" mass="1" value="10" flags="16384" tags="FPE,mod" mesh_data_name="fpe_pressure_gauge.mesh" mesh_0_name="fpe_pressure_gauge_dial.mesh" mesh_1_name="fpe_pressure_gauge_green_segment.mesh" mesh_2_name="fpe_pressure_gauge_red_segment.mesh" constraint_axis="1" max_motor_force="100" max_motor_speed="10" cable_radius="16" cable_length="-431602080" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="200" force_emitter_max_vector="1" engine_max_force="1000" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" door_lower_limit="-1" door_upper_limit="1" dynamic_max_rotation="3.141593" magnet_force="1" pump_pressure="0.01" torque_component_type="1" lua_filename="fpe_pressure_gauge.lua">
-  <tooltip_properties short_description="An analog pressure gauge. The pressure can be read from a fluid slot or from a composite value. The pressure range and color markings can be configured using a composite input."/>
+<definition name="Pressure Gauge" category="9" type="66" mass="1" value="20" flags="24576" tags="FPE,mod,dial" mesh_data_name="fpe_pressure_gauge.mesh" mesh_0_name="fpe_pressure_gauge_dial.mesh" mesh_1_name="fpe_pressure_gauge_green_segment.mesh" mesh_2_name="fpe_pressure_gauge_red_segment.mesh" constraint_axis="1" max_motor_force="100" max_motor_speed="10" cable_radius="16" cable_length="-431602080" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="200" force_emitter_max_vector="1" engine_max_force="1000" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" door_lower_limit="-1" door_upper_limit="1" dynamic_max_rotation="3.141593" magnet_force="1" pump_pressure="0.01" torque_component_type="1" lua_filename="fpe_pressure_gauge.lua">
+  <tooltip_properties short_description="An analog pressure gauge. The pressure can be read from a fluid slot or from a composite value. The pressure color markings can be configured using a composite input."/>
 	<sfx_datas/>
 	<surfaces>
 		<surface shape="0">
@@ -32,14 +32,12 @@
 		</logic_node>
     <logic_node label="Settings" mode="1" type="5" description="Input values:
 1: Pressure value override.      
-2: Pressure range start.
-3: Pressure range end. Default: 60. A value of 0 (or unconnected slot) falls back to 60 atm.
-4: Green area start.
-5: Green area end.
-6: Red area 1 start.
-7: Red area 1 end.
-8: Red area 2 start.
-9: Red area 2 end.">
+2: Green area start.
+3: Green area end.
+4: Red area 1 start.
+5: Red area 1 end.
+6: Red area 2 start.
+7: Red area 2 end.">
 			<position/>
 		</logic_node>
 	</logic_nodes>

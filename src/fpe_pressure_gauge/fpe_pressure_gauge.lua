@@ -25,8 +25,8 @@ local settings_read_ticks = 0
 local PRESSURE_CACHE = {}
 
 local SEGMENT_ROTATIONS = {}
-for i = 1, SEGMENTS do
-	local angle_deg = DEGREES_PER_SEGMENT * (i - 1)
+for i = 0, SEGMENTS do
+	local angle_deg = DEGREES_PER_SEGMENT * i
 	local angle_rad = math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5 + angle_deg)
 	SEGMENT_ROTATIONS[i] = matrix.rotationY(angle_rad)
 end
@@ -43,8 +43,6 @@ local band_cache = {
 }
 
 ---@class PressureGaugeSettings
----@field pressure_range_start number
----@field pressure_range_end number
 ---@field green_start number
 ---@field green_end number
 ---@field red_1_start number
@@ -54,8 +52,6 @@ local band_cache = {
 
 ---@type PressureGaugeSettings
 local settings = {
-	pressure_range_start = 0,
-	pressure_range_end = 60,
 	green_start = 0,
 	green_end = 0,
 	red_1_start = 0,
@@ -105,11 +101,7 @@ end
 ---@param p number
 ---@return number
 local function pressureToAngle(p)
-	local span = settings.pressure_range_end - settings.pressure_range_start
-	if span <= 0 then -- zero-width range: park needle at start
-		return math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5)
-	end
-	local t = clamp((p - settings.pressure_range_start) / span, 0, 1)
+	local t = clamp(p / MAX_PRESSURE, 0, 1)
 	return math.rad(-NEEDLE_SWEEP_ANGLE_DEG * 0.5 + t * NEEDLE_SWEEP_ANGLE_DEG)
 end
 
@@ -124,12 +116,8 @@ end
 ---@param p number
 ---@return number|nil
 local function pressureToSegment(p)
-	local span = settings.pressure_range_end - settings.pressure_range_start
-	if span <= 0 then
-		return nil
-	end
-	local t = clamp((p - settings.pressure_range_start) / span, 0, 1)
-	return clamp(math.floor(t * SEGMENTS) + 1, 0, SEGMENTS)
+	local t = clamp(p / MAX_PRESSURE, 0, 1)
+	return clamp(math.floor(t * SEGMENTS), 0, SEGMENTS)
 end
 
 ---@param render_function fun(m: table)
@@ -146,14 +134,12 @@ end
 
 ---@param composite_float_values table
 local function readSettings(composite_float_values)
-	settings.pressure_range_start = parseSetting(composite_float_values, 2, 0, MAX_PRESSURE, 0)
-	settings.pressure_range_end = parseSetting(composite_float_values, 3, 0, MAX_PRESSURE, MAX_PRESSURE)
-	settings.green_start = parseSetting(composite_float_values, 4, 0, MAX_PRESSURE, 0)
-	settings.green_end = parseSetting(composite_float_values, 5, 0, MAX_PRESSURE, 0)
-	settings.red_1_start = parseSetting(composite_float_values, 6, 0, MAX_PRESSURE, 0)
-	settings.red_1_end = parseSetting(composite_float_values, 7, 0, MAX_PRESSURE, 0)
-	settings.red_2_start = parseSetting(composite_float_values, 8, 0, MAX_PRESSURE, 0)
-	settings.red_2_end = parseSetting(composite_float_values, 9, 0, MAX_PRESSURE, 0)
+	settings.green_start = parseSetting(composite_float_values, 2, 0, MAX_PRESSURE, 0)
+	settings.green_end = parseSetting(composite_float_values, 3, 0, MAX_PRESSURE, 0)
+	settings.red_1_start = parseSetting(composite_float_values, 4, 0, MAX_PRESSURE, 0)
+	settings.red_1_end = parseSetting(composite_float_values, 5, 0, MAX_PRESSURE, 0)
+	settings.red_2_start = parseSetting(composite_float_values, 6, 0, MAX_PRESSURE, 0)
+	settings.red_2_end = parseSetting(composite_float_values, 7, 0, MAX_PRESSURE, 0)
 
 	-- Did any band setting change?
 	if
@@ -163,29 +149,19 @@ local function readSettings(composite_float_values)
 		and settings.red_1_end == old_settings.red_1_end
 		and settings.red_2_start == old_settings.red_2_start
 		and settings.red_2_end == old_settings.red_2_end
-		and settings.pressure_range_start == old_settings.pressure_range_start
-		and settings.pressure_range_end == old_settings.pressure_range_end
 	then
 		return -- Nothing changed, bail out quickly
 	end
 
 	-- Build ranges once per settings update
 	band_cache.green.first = pressureToSegment(settings.green_start)
-	band_cache.green.last = pressureToSegment(math.min(settings.green_end, settings.pressure_range_end))
+	band_cache.green.last = pressureToSegment(settings.green_end) - 1
 
 	band_cache.red_1.first = pressureToSegment(settings.red_1_start)
-	band_cache.red_1.last = pressureToSegment(math.min(settings.red_1_end, settings.pressure_range_end))
+	band_cache.red_1.last = pressureToSegment(settings.red_1_end) - 1
 
 	band_cache.red_2.first = pressureToSegment(settings.red_2_start)
-	band_cache.red_2.last = pressureToSegment(math.min(settings.red_2_end, settings.pressure_range_end))
-
-	-- Rebuild cache if pressure range changed
-	if
-		settings.pressure_range_start ~= old_settings.pressure_range_start
-		or settings.pressure_range_end ~= old_settings.pressure_range_end
-	then
-		rebuildPressureCache()
-	end
+	band_cache.red_2.last = pressureToSegment(settings.red_2_end) - 1
 
 	-- Remember for next comparison
 	for k, v in pairs(settings) do
