@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definition name="Flow Sensor" category="9" type="66" mass="0.25" value="200" flags="16384" tags="FPE,mod" mesh_data_name="fpe_flow_sensor.mesh" constraint_axis="1" max_motor_force="100" max_motor_speed="10" cable_radius="16" cable_length="-431602080" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="200" force_emitter_max_vector="1" engine_max_force="1000" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" door_lower_limit="-1" door_upper_limit="1" dynamic_max_rotation="3.141593" magnet_force="1" pump_pressure="0.01" torque_component_type="1" lua_filename="fpe_flow_sensor.lua">
-  <tooltip_properties short_description="A flow sensor."/>
+  <tooltip_properties short_description="A flow sensor with a number output for the total flow rate and a composite data output for the flow rates per fluid type, plus separate totals for liquids, gases and combined flow. All measurements are in L/s."/>
 	<sfx_datas/>
 	<surfaces>
 		<surface orientation="1" shape="3" trans_type="2">
@@ -30,8 +30,27 @@
 		<logic_node orientation="0" label="Fluid B" type="3">
 			<position/>
 		</logic_node>
-    <logic_node label="Flow" type="1" description="Fluid flow rate in L/s.">
+    <logic_node label="Flow" type="1" description="Total fluid flow rate in L/s.">
 			<position/>
+		</logic_node>
+    <logic_node label="Flow Data" mode="0" type="5" description="Composite data containing the flow rates in L/s per fluid type:
+1: Water
+2: Diesel
+3: Jet fuel
+4: Air
+5: Carbon dioxide
+6: Oil
+7: Seawater
+8: Steam
+9: Slurry
+10: Slurry (saturated)
+11: Oxygen
+12: Nitrogen
+13: Hydrogen
+30: Total liquid flow rate
+31: Total gas flow rate
+32: Total liquid+gas flow rate">
+			<position x="0" y="0" z="0"/>
 		</logic_node>
 	</logic_nodes>
 	<couplings/>
