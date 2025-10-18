@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definition name="Hose Connector" category="4" type="48" mass="0.25" value="30" flags="532481" tags="FPE,mod,hose,anchor" audio_gain="1" mesh_data_name="fpe_hose_connector.mesh" cable_radius="1.0" logic_gate_subtype="1">
+	<tooltip_properties description="A hose connector that can be attached to flat surfaces and pipes."/>
+	<sfx_datas>
+		<sfx_data sfx_name="winch" sfx_range_inner="2" sfx_range_outer="20">
+			<sfx_layers>
+				<sfx_layer sfx_filename_loop="audio/fx/servo_medium_loop.ogg" sfx_volume_fade_speed="0.1" sfx_pitch_fade_speed="0.1"/>
+			</sfx_layers>
+		</sfx_data>
+		<sfx_data sfx_name="snap" sfx_range_inner="2" sfx_range_outer="20">
+			<sfx_layers>
+				<sfx_layer sfx_filename_start="audio/fx5/ropesnap_03.ogg" sfx_volume_fade_speed="0.1" sfx_pitch_fade_speed="0.1"/>
+			</sfx_layers>
+		</sfx_data>
+	</sfx_datas>
+	<surfaces>
+		<surface orientation="3" shape="3" trans_type="2">
+			<position/>
+		</surface>
+	</surfaces>
+	<buoyancy_surfaces>
+	</buoyancy_surfaces>
+	<logic_nodes>
+		<logic_node label="Rope Node" mode="1" type="8">
+			<position y="0"/>
+		</logic_node>
+		<logic_node orientation="3" label="Fluid Node" mode="1" type="3">
+			<position/>
+		</logic_node>
+	</logic_nodes>
+	<couplings/>
+	<voxels>
+		<voxel flags="6">
+			<position/>
+			<physics_shape_rotation/>
+		</voxel>
+	</voxels>
+	<voxel_min/>
+	<voxel_max y="1"/>
+	<voxel_physics_min/>
+	<voxel_physics_max/>
+	<bb_physics_min/>
+	<bb_physics_max/>
+	<compartment_sample_pos/>
+	<constraint_pos_parent/>
+	<constraint_pos_child/>
+	<voxel_location_child/>
+	<seat_offset/>
+	<seat_front/>
+	<seat_up/>
+	<seat_camera/>
+	<seat_render/>
+	<force_dir y="1"/>
+	<light_position/>
+	<light_color x="1" y="1" z="1"/>
+	<light_forward/>
+	<door_size x="1" y="1" z="1"/>
+	<door_normal/>
+	<door_side/>
+	<door_up/>
+	<door_base_pos/>
+	<dynamic_body_position/>
+	<dynamic_rotation_axes y="1"/>
+	<dynamic_side_axis x="1"/>
+	<magnet_offset/>
+	<connector_axis/>
+	<connector_up/>
+	<jet_engine_connections_prev/>
+	<jet_engine_connections_next/>
+	<particle_direction/>
+	<particle_offset/>
+	<particle_bounds/>
+	<rope_hook_offset y="-0.100"/>
+</definition>
+
