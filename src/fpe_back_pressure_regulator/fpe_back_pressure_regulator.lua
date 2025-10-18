@@ -1,4 +1,4 @@
-local FILTERS = require("../lib/fluid_filters").ALL_FLUIDS + require("../lib/fluid_filters").ALL_GASES
+local FILTERS = require("../lib/fluid_filters").ALL_LIQUIDS + require("../lib/fluid_filters").ALL_GASES
 
 -- Component details:
 -- Type: back-pressure regulator

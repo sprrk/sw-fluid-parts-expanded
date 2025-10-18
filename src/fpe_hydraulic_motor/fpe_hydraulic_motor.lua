@@ -1,4 +1,4 @@
-local FILTERS_FLUIDS = require("../lib/fluid_filters").ALL_FLUIDS
+local FILTERS_LIQUIDS = require("../lib/fluid_filters").ALL_LIQUIDS
 
 -- Component details:
 -- Type: hydraulic motor
@@ -46,7 +46,7 @@ local function resolveFluidVolumeFlow(slot, volume)
 		1.0, -- flow_factor
 		false, -- is_one_way_in_to_slot
 		false, -- is_one_way_out_of_slot
-		FILTERS_FLUIDS,
+		FILTERS_LIQUIDS,
 		-1 -- index_fluid_contents_transfer
 	)
 end
