@@ -1,51 +1,65 @@
-local FILTERS = require("../lib/fluid_filters").ALL_LIQUIDS + require("../lib/fluid_filters").ALL_GASES
-
 -- Component details:
 -- Type: pressure regulator
 -- Regulates output pressure by moving fluid from input to output until
 -- target pressure is achieved, or pressure is equalized.
 
-local PRESSURE_SCALE = 60
-local FLUID_VOLUME_SIZE = 6.0 -- Liters
+local FILTERS = require("../lib/fluid_filters").ALL_LIQUIDS + require("../lib/fluid_filters").ALL_GASES
+local PID = require("../lib/pid")
+local DotMatrixDisplay = require("../lib/dot_matrix_display")
 
--- Slot definitions
+local FLUID_VOLUME_SIZE_BUFFER = 2.0 -- Liters
+
+local ELECTRIC_USAGE = 0.0005
+
 local FLUID_SLOT_A = 0
 local FLUID_SLOT_B = 1
-local TARGET_PRESSURE_SLOT = 0
+local FLUID_SLOT_SENSING_LINE = 2
 
--- Fluid volume indices
-local FLUID_VOLUME_A = 0
-local FLUID_VOLUME_B = 1
+local TARGET_PRESSURE_SLOT = 0
+local ELECTRIC_SLOT = 0
+
+local FLUID_VOLUME_BUFFER = 0
 
 local initialized = false
+local powered = false
+local targetPressure = 0
+local prevTargetPressureInput = 0
 
----@param value number
----@param min number
----@param max number
----@return number
-local function clamp(value, min, max)
-	return value < min and min or value > max and max or value
-end
-
----@param slot integer
----@param volume integer
-local function resolveFluidVolumeFlow(slot, volume)
-	component.slotFluidResolveFlow(
-		slot,
-		volume,
-		0.0, -- pump_pressure
-		1.0, -- flow_factor
-		false, -- is_one_way_in_to_slot
-		false, -- is_one_way_out_of_slot
-		FILTERS,
-		-1 -- index_fluid_contents_transfer
-	)
+---@return boolean
+local function useEnergy()
+	local chargeFactor, ok = component.slotElectricGetChargeFactor(ELECTRIC_SLOT)
+	if ok and chargeFactor > ELECTRIC_USAGE then
+		component.slotElectricRemoveCharge(ELECTRIC_SLOT, ELECTRIC_USAGE)
+		return true
+	else
+		return false
+	end
 end
 
 local function initialize()
-	component.fluidContentsSetCapacity(FLUID_VOLUME_A, FLUID_VOLUME_SIZE)
-	component.fluidContentsSetCapacity(FLUID_VOLUME_B, FLUID_VOLUME_SIZE)
+	component.fluidContentsSetCapacity(FLUID_VOLUME_BUFFER, FLUID_VOLUME_SIZE_BUFFER)
 	initialized = true
+end
+
+local display = DotMatrixDisplay(0, 0, 0, 4)
+
+-- TODO: Make configurable via composite
+local pid = PID({ Kp = 0.5, Ki = 1.0, Kd = 0.01, min = 0, max = 1, b = 0.3, c = 0, N = 20 })
+
+---@param pressure number
+---@return nil
+local function run(pressure)
+	local flowFactor = pid(targetPressure, pressure)
+
+	component.slotFluidResolveFlowToSlot(
+		FLUID_SLOT_A,
+		FLUID_SLOT_B,
+		0.0, -- pump_pressure
+		flowFactor,
+		true, -- is_one_way
+		FILTERS,
+		-1 -- index_fluid_contents_transfer
+	)
 end
 
 function onTick(_)
@@ -53,35 +67,45 @@ function onTick(_)
 		initialize()
 	end
 
-	-- Handle fluid flow through input and output slots
-	resolveFluidVolumeFlow(FLUID_SLOT_A, FLUID_VOLUME_A)
-	resolveFluidVolumeFlow(FLUID_SLOT_B, FLUID_VOLUME_B)
+	-- TODO: Allow disabling display via composite
+	-- TODO: Allow flipping display via composite
 
-	local target_pressure = clamp(component.getInputLogicSlotFloat(TARGET_PRESSURE_SLOT), 0, PRESSURE_SCALE)
-	if clamp(component.fluidContentsGetPressure(FLUID_VOLUME_B), 0, PRESSURE_SCALE) >= target_pressure then
-		-- Exit early; already at or above target
+	powered = useEnergy()
+	if powered then
+		-- Read pressure from sensing line
+		component.slotFluidResolveFlow(
+			FLUID_SLOT_SENSING_LINE,
+			FLUID_VOLUME_BUFFER,
+			0, -- pump_pressure
+			1.0, -- flow_factor
+			false, -- is_one_way_in_to_slot
+			false, -- is_one_way_out_of_slot
+			FILTERS,
+			-1 -- index_fluid_contents_transfer
+		)
+		local pressure = component.fluidContentsGetPressure(FLUID_VOLUME_BUFFER)
+
+		local targetPressureInput = component.getInputLogicSlotFloat(TARGET_PRESSURE_SLOT)
+		if targetPressureInput ~= prevTargetPressureInput then
+			if targetPressureInput < 0 or targetPressureInput > 60 then
+				display:setText("ERR")
+				targetPressure = 0 -- Disable regulator if input is invalid
+			else
+				targetPressure = targetPressureInput
+				display:setText(targetPressure)
+			end
+
+			prevTargetPressureInput = targetPressureInput
+		end
+
+		run(pressure)
+	end
+end
+
+function onRender()
+	if not initialized or not powered then
 		return
 	end
 
-	local amount_a = component.fluidContentsGetVolume(FLUID_VOLUME_A)
-	if amount_a <= 0 then
-		-- Exit early; no fluid available to move
-		return
-	end
-
-	local amount_b = component.fluidContentsGetVolume(FLUID_VOLUME_B)
-	if amount_b > amount_a then
-		-- Exit early; regulator is one-way
-		return
-	end
-
-	local transfer_amount = math.min(
-		(target_pressure / PRESSURE_SCALE) * FLUID_VOLUME_SIZE - amount_b,
-		amount_a,
-		FLUID_VOLUME_SIZE - amount_b
-	)
-
-	if transfer_amount > 0 then
-		component.fluidContentsTransferVolume(FLUID_VOLUME_A, FLUID_VOLUME_B, transfer_amount)
-	end
+	display:render()
 end
