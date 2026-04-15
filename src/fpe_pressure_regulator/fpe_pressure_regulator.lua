@@ -15,6 +15,7 @@ local FLUID_SLOT_A = 0
 local FLUID_SLOT_B = 1
 local FLUID_SLOT_SENSING_LINE = 2
 
+local COMPOSITE_SLOT = 0
 local TARGET_PRESSURE_SLOT = 0
 local ELECTRIC_SLOT = 0
 
@@ -41,7 +42,7 @@ local function initialize()
 	initialized = true
 end
 
-local display = DotMatrixDisplay(0, 0, 0, 4)
+local display = DotMatrixDisplay({ x = 0, y = 0, z = 0 }, 4)
 
 -- TODO: Make configurable via composite
 local pid = PID({ Kp = 0.5, Ki = 1.0, Kd = 0.01, min = 0, max = 1, b = 0.3, c = 0, N = 20 })
@@ -67,8 +68,24 @@ function onTick(_)
 		initialize()
 	end
 
-	-- TODO: Allow disabling display via composite
-	-- TODO: Allow flipping display via composite
+	local composite, compositeOk = component.getInputLogicSlotComposite(COMPOSITE_SLOT)
+
+	if compositeOk then
+		local floatValues = composite.float_values
+		local boolValues = composite.bool_values
+
+		display:setEnabled(not boolValues[1]) -- Disable display; enabled by default
+
+		display:setFlipped(boolValues[2])
+
+		if boolValues[3] then
+			-- TODO: Switch to back-pressure regulator mode
+		end
+
+		if boolValues[4] then
+			-- TODO: Override default PID values with ones from floatValues
+		end
+	end
 
 	powered = useEnergy()
 	if powered then

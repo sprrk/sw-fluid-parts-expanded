@@ -39,6 +39,11 @@
     <logic_node label="Target Pressure" mode="1" type="1" description="Number input for the target pressure.">
 			<position/>
 		</logic_node>
+    <logic_node label="Settings" mode="1" type="5" description="Bool input values:
+1: Disable display
+2: Flip display">
+			<position/>
+		</logic_node>
 	</logic_nodes>
 	<couplings/>
 	<voxels>
