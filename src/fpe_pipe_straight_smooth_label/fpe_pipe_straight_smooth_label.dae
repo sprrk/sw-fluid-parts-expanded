@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <asset>
+    <contributor>
+      <author>Blender User</author>
+      <authoring_tool>Blender 4.5.8 LTS commit date:2026-03-16, commit time:16:54, hash:d7359176d0d3</authoring_tool>
+    </contributor>
+    <created>2026-04-15T16:50:51</created>
+    <modified>2026-04-15T16:50:51</modified>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_effects>
+    <effect id="editable1_019-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color sid="emission">0 0 0 1</color>
+            </emission>
+            <diffuse>
+              <color sid="diffuse">1 0.4941176 0 1</color>
+            </diffuse>
+            <index_of_refraction>
+              <float sid="ior">1.5</float>
+            </index_of_refraction>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="editable2_016-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color sid="emission">0 0 0 1</color>
+            </emission>
+            <diffuse>
+              <color sid="diffuse">0.6104922 0.4910214 0 1</color>
+            </diffuse>
+            <index_of_refraction>
+              <float sid="ior">1.5</float>
+            </index_of_refraction>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_images/>
+  <library_materials>
+    <material id="editable1_019-material" name="editable1.019">
+      <instance_effect url="#editable1_019-effect"/>
+    </material>
+    <material id="editable2_016-material" name="editable2.016">
+      <instance_effect url="#editable2_016-effect"/>
+    </material>
+  </library_materials>
+  <library_geometries>
+    <geometry id="ID2_009-mesh" name="ID2.009">
+      <mesh>
+        <source id="ID2_009-mesh-positions">
+          <float_array id="ID2_009-mesh-positions-array" count="78">4.92126 -1.019226 2.46063 4.92126 -2.46063 1.019226 4.92126 -1.019226 -2.46063 -4.92126 -2.46063 1.019226 -4.92126 -1.019226 -2.46063 -4.92126 -1.019226 2.46063 -4.92126 -1.499694 -1.980162 4.92126 -1.499694 -1.980162 4.92126 -1.499694 1.980162 -4.92126 -1.499694 1.980162 4.92126 -2.46063 -1.019226 4.92126 -2.46063 -1.019226 4.92126 -2.46063 1.019226 -4.92126 -2.46063 -1.019226 4.92126 1.019226 2.46063 4.92126 2.460629 1.019226 4.92126 1.019226 -2.46063 -4.921261 2.460629 1.019226 -4.921261 1.019226 -2.46063 -4.921261 1.019226 2.46063 -4.921261 1.499694 -1.980162 4.92126 1.499693 -1.980162 4.92126 1.499693 1.980162 -4.921261 1.499694 1.980162 4.92126 2.460629 -1.019226 -4.921261 2.460629 -1.019226</float_array>
+          <technique_common>
+            <accessor source="#ID2_009-mesh-positions-array" count="26" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="ID2_009-mesh-normals">
+          <float_array id="ID2_009-mesh-normals-array" count="78">0 -0.7071067 0.7071068 0 0 1 0 -0.7071068 -0.7071068 0 0 1 0 -0.7071068 -0.7071068 0 -0.7071068 0.7071068 0 0.707107 -0.7071067 0 -1 0 0 0.7071067 -0.7071068 0 0 1 0 0.707107 0.7071066 0 0.7071067 0.7071068 0 1 0 0 0 -1 0 -0.7071068 0.7071068 0 -0.7071068 -0.7071068 0 -0.7071068 -0.7071068 0 -0.7071068 0.7071068 0 0.7071068 -0.7071068 0 -1 0 0 0.707107 -0.7071066 0 0 1 0 0.7071068 0.7071068 0 0.707107 0.7071066 0 1 0 0 0 -1</float_array>
+          <technique_common>
+            <accessor source="#ID2_009-mesh-normals-array" count="26" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="ID2_009-mesh-vertices">
+          <input semantic="POSITION" source="#ID2_009-mesh-positions"/>
+        </vertices>
+        <triangles material="editable1_019-material" count="12">
+          <input semantic="VERTEX" source="#ID2_009-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#ID2_009-mesh-normals" offset="1"/>
+          <p>2 2 6 2 4 2 9 5 0 5 5 5 20 8 16 8 18 8 14 9 5 9 0 9 14 11 23 11 19 11 18 13 2 13 4 13 2 15 7 15 6 15 9 17 8 17 0 17 20 20 21 20 16 20 14 21 19 21 5 21 14 23 22 23 23 23 18 25 16 25 2 25</p>
+        </triangles>
+        <triangles material="editable2_016-material" count="14">
+          <input semantic="VERTEX" source="#ID2_009-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#ID2_009-mesh-normals" offset="1"/>
+          <p>3 0 8 0 9 0 1 1 8 1 12 1 11 3 10 3 7 3 7 4 13 4 6 4 25 6 21 6 20 6 13 7 12 7 3 7 23 10 15 10 17 10 24 12 17 12 15 12 3 14 12 14 8 14 7 16 10 16 13 16 25 18 24 18 21 18 13 19 10 19 12 19 23 22 22 22 15 22 24 24 25 24 17 24</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="Scene">
+      <node id="pipe_straight_smooth_label" name="pipe_straight_smooth_label" type="NODE">
+        <matrix sid="transform">0.0254 0 0 0 0 0.0254 0 0 0 0 0.0254 0 0 0 0 1</matrix>
+        <instance_geometry url="#ID2_009-mesh" name="pipe_straight_smooth_label">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="editable1_019-material" target="#editable1_019-material"/>
+              <instance_material symbol="editable2_016-material" target="#editable2_016-material"/>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#Scene"/>
+  </scene>
+</COLLADA>

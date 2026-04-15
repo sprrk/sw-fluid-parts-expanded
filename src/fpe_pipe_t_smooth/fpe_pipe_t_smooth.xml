@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definition name="Pipe T-Piece (Smooth)" type="6" mass="1" value="5" flags="16384" tags="FPE,mod" mesh_data_name="fpe_pipe_t_smooth.mesh" cable_length="16" buoy_radius="1" buoy_factor="0.1" buoy_force="1" force_emitter_max_force="950" engine_max_force="200" trans_conn_type="2">
+	<sfx_datas/>
+	<surfaces>
+		<surface orientation="1" shape="3" trans_type="2">
+			<position/>
+		</surface>
+		<surface orientation="2" shape="3" trans_type="2">
+			<position/>
+		</surface>
+		<surface orientation="3" shape="3" trans_type="2">
+			<position/>
+		</surface>
+	</surfaces>
+	<buoyancy_surfaces/>
+	<logic_nodes/>
+	<couplings/>
+	<voxels>
+		<voxel flags="1" buoy_pipes="19">
+			<position/>
+			<physics_shape_rotation/>
+		</voxel>
+	</voxels>
+	<voxel_min/>
+	<voxel_max/>
+	<voxel_physics_min/>
+	<voxel_physics_max/>
+	<bb_physics_min/>
+	<bb_physics_max/>
+	<compartment_sample_pos/>
+	<constraint_pos_parent/>
+	<constraint_pos_child/>
+	<voxel_location_child/>
+	<seat_offset/>
+	<seat_front/>
+	<seat_up/>
+	<seat_camera/>
+	<seat_render/>
+	<force_dir/>
+	<light_position/>
+	<light_color x="1" y="1" z="1"/>
+	<light_forward/>
+	<door_size x="1" y="1" z="1"/>
+	<door_normal/>
+	<door_side/>
+	<door_up/>
+	<door_base_pos/>
+	<dynamic_body_position/>
+	<dynamic_rotation_axes y="1"/>
+	<dynamic_side_axis x="1"/>
+	<magnet_offset/>
+	<connector_axis/>
+	<connector_up/>
+	<tooltip_properties short_description="A T-shaped pipe."/>
+	<jet_engine_connections_prev/>
+	<jet_engine_connections_next/>
+	<particle_direction/>
+	<particle_offset/>
+	<particle_bounds/>
+	<rope_hook_offset/>
+</definition>
+
