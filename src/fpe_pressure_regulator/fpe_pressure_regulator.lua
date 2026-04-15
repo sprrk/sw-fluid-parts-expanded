@@ -23,6 +23,10 @@ local FLUID_VOLUME_BUFFER = 0
 
 local initialized = false
 local powered = false
+local reverse = false
+local fluidSlotIn = FLUID_SLOT_A
+local fluidSlotOut = FLUID_SLOT_B
+
 local targetPressure = 0
 local prevTargetPressureInput = 0
 
@@ -53,8 +57,8 @@ local function run(pressure)
 	local flowFactor = pid(targetPressure, pressure)
 
 	component.slotFluidResolveFlowToSlot(
-		FLUID_SLOT_A,
-		FLUID_SLOT_B,
+		fluidSlotIn,
+		fluidSlotOut,
 		0.0, -- pump_pressure
 		flowFactor,
 		true, -- is_one_way
@@ -82,8 +86,16 @@ function onTick(_)
 			-- TODO: Switch to back-pressure regulator mode
 		end
 
-		if boolValues[4] then
-			-- TODO: Reverse flow direction
+		local _reverse = boolValues[4]
+		if _reverse ~= reverse then
+			reverse = _reverse
+			if reverse then
+				fluidSlotIn = FLUID_SLOT_B
+				fluidSlotOut = FLUID_SLOT_A
+			else
+				fluidSlotIn = FLUID_SLOT_A
+				fluidSlotOut = FLUID_SLOT_B
+			end
 		end
 
 		if boolValues[5] then
