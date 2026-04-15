@@ -83,6 +83,10 @@ function onTick(_)
 		end
 
 		if boolValues[4] then
+			-- TODO: Reverse flow direction
+		end
+
+		if boolValues[5] then
 			-- TODO: Override default PID values with ones from floatValues
 		end
 	end
