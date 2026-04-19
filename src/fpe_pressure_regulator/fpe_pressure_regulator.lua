@@ -6,6 +6,7 @@
 local FILTERS = require("../lib/fluid_filters").ALL_LIQUIDS + require("../lib/fluid_filters").ALL_GASES
 local PID = require("../lib/pid")
 local DotMatrixDisplay = require("../lib/dot_matrix_display")
+local clamp = require("sw-lua-lib/extramath/clamp")
 
 local FLUID_VOLUME_SIZE_BUFFER = 2.0 -- Liters
 
@@ -23,7 +24,8 @@ local FLUID_VOLUME_BUFFER = 0
 
 local initialized = false
 local powered = false
-local reverse = false
+local reverseFlowMode = false
+local backPressureMode = false
 local fluidSlotIn = FLUID_SLOT_A
 local fluidSlotOut = FLUID_SLOT_B
 
@@ -56,6 +58,10 @@ local pid = PID({ Kp = 0.5, Ki = 1.0, Kd = 0.01, min = 0, max = 1, b = 0.3, c = 
 local function run(pressure)
 	local flowFactor = pid(targetPressure, pressure)
 
+	if backPressureMode then
+		flowFactor = clamp(1 - flowFactor, 0, 1)
+	end
+
 	component.slotFluidResolveFlowToSlot(
 		fluidSlotIn,
 		fluidSlotOut,
@@ -82,14 +88,12 @@ function onTick(_)
 
 		display:setFlipped(boolValues[2])
 
-		if boolValues[3] then
-			-- TODO: Switch to back-pressure regulator mode
-		end
+		backPressureMode = boolValues[3]
 
-		local _reverse = boolValues[4]
-		if _reverse ~= reverse then
-			reverse = _reverse
-			if reverse then
+		local _reverseFlowMode = boolValues[4]
+		if _reverseFlowMode ~= reverseFlowMode then
+			reverseFlowMode = _reverseFlowMode
+			if reverseFlowMode then
 				fluidSlotIn = FLUID_SLOT_B
 				fluidSlotOut = FLUID_SLOT_A
 			else
