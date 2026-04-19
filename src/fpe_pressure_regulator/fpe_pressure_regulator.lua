@@ -30,7 +30,6 @@ local fluidSlotIn = FLUID_SLOT_A
 local fluidSlotOut = FLUID_SLOT_B
 
 local targetPressure = 0
-local prevTargetPressureInput = 0
 
 ---@return boolean
 local function useEnergy()
@@ -41,11 +40,6 @@ local function useEnergy()
 	else
 		return false
 	end
-end
-
-local function initialize()
-	component.fluidContentsSetCapacity(FLUID_VOLUME_BUFFER, FLUID_VOLUME_SIZE_BUFFER)
-	initialized = true
 end
 
 local display = DotMatrixDisplay({ x = 0, y = 0, z = 0 }, 4)
@@ -73,9 +67,43 @@ local function run(pressure)
 	)
 end
 
+---@generic T : integer|number|string|nil
+---@param initialValue T
+---@param onChangeCallback fun(newValue: T, oldValue: T)
+---@return fun(): T getterFunc, fun(newValue: T): boolean setterFunc
+local function observable(initialValue, onChangeCallback)
+	local storedValue = initialValue
+
+	return function()
+		return storedValue
+	end, function(newValue)
+		if storedValue ~= newValue then
+			onChangeCallback(newValue, storedValue)
+			storedValue = newValue
+			return true
+		end
+		return false
+	end
+end
+
+---@param newValue number
+local function onTargetPressureChange(newValue)
+	if newValue < 0 or newValue > 60 then
+		display:setText("ERR")
+		targetPressure = 0 -- Disable regulator if input is invalid
+	else
+		targetPressure = newValue
+		display:setText(newValue)
+	end
+end
+
+local getTargetPressure, setTargetPressure = observable(0.0, onTargetPressureChange)
+
 function onTick(_)
 	if not initialized then
-		initialize()
+		component.fluidContentsSetCapacity(FLUID_VOLUME_BUFFER, FLUID_VOLUME_SIZE_BUFFER)
+		display:setText(0.00)
+		initialized = true
 	end
 
 	local composite, compositeOk = component.getInputLogicSlotComposite(COMPOSITE_SLOT)
@@ -123,17 +151,8 @@ function onTick(_)
 		local pressure = component.fluidContentsGetPressure(FLUID_VOLUME_BUFFER)
 
 		local targetPressureInput = component.getInputLogicSlotFloat(TARGET_PRESSURE_SLOT)
-		if targetPressureInput ~= prevTargetPressureInput then
-			if not targetPressureInput or targetPressureInput < 0 or targetPressureInput > 60 then
-				display:setText("ERR")
-				targetPressure = 0 -- Disable regulator if input is invalid
-			else
-				targetPressure = targetPressureInput
-				display:setText(targetPressure)
-			end
 
-			prevTargetPressureInput = targetPressureInput
-		end
+		setTargetPressure(targetPressureInput)
 
 		run(pressure)
 	end
