@@ -124,7 +124,7 @@ function onTick(_)
 
 		local targetPressureInput = component.getInputLogicSlotFloat(TARGET_PRESSURE_SLOT)
 		if targetPressureInput ~= prevTargetPressureInput then
-			if targetPressureInput < 0 or targetPressureInput > 60 then
+			if not targetPressureInput or targetPressureInput < 0 or targetPressureInput > 60 then
 				display:setText("ERR")
 				targetPressure = 0 -- Disable regulator if input is invalid
 			else
