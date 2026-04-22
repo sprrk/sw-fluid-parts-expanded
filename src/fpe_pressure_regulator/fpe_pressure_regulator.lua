@@ -24,7 +24,6 @@ local FLUID_VOLUME_BUFFER = 0
 
 local initialized = false
 local powered = false
-local reverseFlowMode = false
 local backPressureMode = false
 local fluidSlotIn = FLUID_SLOT_A
 local fluidSlotOut = FLUID_SLOT_B
@@ -67,7 +66,7 @@ local function run(pressure)
 	)
 end
 
----@generic T : integer|number|string|nil
+---@generic T : integer|number|string|boolean|nil
 ---@param initialValue T
 ---@param onChangeCallback fun(newValue: T, oldValue: T)
 ---@return fun(): T getterFunc, fun(newValue: T): boolean setterFunc
@@ -97,7 +96,19 @@ local function onTargetPressureChange(newValue)
 	end
 end
 
+---@param newValue boolean
+local function onReverseFlowModeChange(newValue)
+	if newValue then
+		fluidSlotIn = FLUID_SLOT_B
+		fluidSlotOut = FLUID_SLOT_A
+	else
+		fluidSlotIn = FLUID_SLOT_A
+		fluidSlotOut = FLUID_SLOT_B
+	end
+end
+
 local getTargetPressure, setTargetPressure = observable(0.0, onTargetPressureChange)
+local getReverseFlowMode, setReverseFlowMode = observable(false, onReverseFlowModeChange)
 
 function onTick(_)
 	if not initialized then
@@ -113,22 +124,9 @@ function onTick(_)
 		local boolValues = composite.bool_values
 
 		display:setEnabled(not boolValues[1]) -- Disable display; enabled by default
-
 		display:setFlipped(boolValues[2])
-
 		backPressureMode = boolValues[3]
-
-		local _reverseFlowMode = boolValues[4]
-		if _reverseFlowMode ~= reverseFlowMode then
-			reverseFlowMode = _reverseFlowMode
-			if reverseFlowMode then
-				fluidSlotIn = FLUID_SLOT_B
-				fluidSlotOut = FLUID_SLOT_A
-			else
-				fluidSlotIn = FLUID_SLOT_A
-				fluidSlotOut = FLUID_SLOT_B
-			end
-		end
+		setReverseFlowMode(boolValues[4])
 
 		if boolValues[5] then
 			-- TODO: Override default PID values with ones from floatValues
