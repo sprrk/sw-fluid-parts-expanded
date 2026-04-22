@@ -19,6 +19,7 @@ local FLUID_SLOT_SENSING_LINE = 2
 local COMPOSITE_SLOT = 0
 local TARGET_PRESSURE_SLOT = 0
 local ELECTRIC_SLOT = 0
+local DISPLAY_SLOT = 0
 
 local FLUID_VOLUME_BUFFER = 0
 
@@ -109,6 +110,9 @@ end
 
 local getTargetPressure, setTargetPressure = observable(0.0, onTargetPressureChange)
 local getReverseFlowMode, setReverseFlowMode = observable(false, onReverseFlowModeChange)
+local getDisplayEnabled, setDisplayEnabled = observable(false, function(v)
+	display:setEnabled(v)
+end)
 
 function onTick(_)
 	if not initialized then
@@ -123,7 +127,6 @@ function onTick(_)
 		local floatValues = composite.float_values
 		local boolValues = composite.bool_values
 
-		display:setEnabled(not boolValues[1]) -- Disable display; enabled by default
 		display:setFlipped(boolValues[2])
 		backPressureMode = boolValues[3]
 		setReverseFlowMode(boolValues[4])
@@ -132,6 +135,8 @@ function onTick(_)
 			-- TODO: Override default PID values with ones from floatValues
 		end
 	end
+
+	setDisplayEnabled(component.getInputLogicSlotBool(DISPLAY_SLOT))
 
 	powered = useEnergy()
 	if powered then

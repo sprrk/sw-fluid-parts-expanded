@@ -5,7 +5,7 @@
 The default configuration can be overridden via composite data:
 - Operating mode (pressure-reducing / back-pressure)
 - Flow direction
-- Display settings (on/off, flip display)"/>
+- Display settings (flip display)"/>
 	<sfx_datas/>
 	<surfaces>
 		<surface orientation="1" shape="3" trans_type="2">
@@ -45,17 +45,23 @@ The default configuration can be overridden via composite data:
 			<position/>
 		</logic_node>
     <logic_node label="Settings" mode="1" type="5" description="Bool input values:
-1: Disable display
 2: Flip display
 3: Back-pressure mode
 4: Reverse flow direction">
 			<position/>
+		</logic_node>
+		<logic_node label="Display" mode="1" type="0" description="Enables the display when receiving an on signal.">
+			<position x="0" y="1" z="0"/>
 		</logic_node>
 	</logic_nodes>
 	<couplings/>
 	<voxels>
 		<voxel flags="1">
 			<position/>
+			<physics_shape_rotation/>
+		</voxel>
+		<voxel flags="0" physics_shape="0">
+			<position x="0" y="1" z="0"/>
 			<physics_shape_rotation/>
 		</voxel>
 	</voxels>
