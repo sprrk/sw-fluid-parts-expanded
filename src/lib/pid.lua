@@ -29,6 +29,8 @@ local function PID(settings)
 	local prevErrorForD = nil -- stores (c*sp - pv) from previous call
 	local prevFilteredDerivative = 0
 
+	local _min, _max = math.min, math.max
+
 	---@param sp number Setpoint
 	---@param pv number Process variable
 	---@param dt number? Seconds since last call (default: 1/60)
@@ -69,12 +71,12 @@ local function PID(settings)
 		local integralMax = max - outputWithoutIntegral
 
 		integral = integral + Ki * error * dt
-		integral = math.max(integralMin, math.min(integralMax, integral))
+		integral = _max(integralMin, _min(integralMax, integral))
 
 		local output = outputWithoutIntegral + integral
 
 		-- Numerical safety clamp
-		return math.max(min, math.min(max, output))
+		return _max(min, _min(max, output))
 	end
 end
 
