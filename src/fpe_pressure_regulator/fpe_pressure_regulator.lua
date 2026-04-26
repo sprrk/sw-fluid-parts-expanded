@@ -7,6 +7,7 @@ local FILTERS = require("../lib/fluid_filters").ALL_LIQUIDS + require("../lib/fl
 local PID = require("../lib/pid")
 local DotMatrixDisplay = require("../lib/dot_matrix_display")
 local clamp = require("sw-lua-lib/extramath/clamp")
+local observable = require("sw-lua-lib/observer/simple_observable")
 
 local FLUID_VOLUME_SIZE_BUFFER = 2.0 -- Liters
 
@@ -67,38 +68,17 @@ local function run(pressure)
 	)
 end
 
----@generic T : integer|number|string|boolean|nil
----@param initialValue T
----@param onChangeCallback fun(newValue: T, oldValue: T)
----@return fun(): T getterFunc, fun(newValue: T): boolean setterFunc
-local function observable(initialValue, onChangeCallback)
-	local storedValue = initialValue
-
-	return function()
-		return storedValue
-	end, function(newValue)
-		if storedValue ~= newValue then
-			onChangeCallback(newValue, storedValue)
-			storedValue = newValue
-			return true
-		end
-		return false
-	end
-end
-
----@param newValue number
-local function onTargetPressureChange(newValue)
-	if newValue < 0 or newValue > 60 then
+local _, setTargetPressure = observable(0.0, function(v)
+	if v < 0 or v > 60 then
 		display:setText("ERR")
 		targetPressure = 0 -- Disable regulator if input is invalid
 	else
-		targetPressure = newValue
-		display:setText(newValue)
+		targetPressure = v
+		display:setText(v)
 	end
-end
+end)
 
----@param newValue boolean
-local function onReverseFlowModeChange(newValue)
+local _, setReverseFlowMode = observable(false, function(newValue)
 	if newValue then
 		fluidSlotIn = FLUID_SLOT_B
 		fluidSlotOut = FLUID_SLOT_A
@@ -106,11 +86,9 @@ local function onReverseFlowModeChange(newValue)
 		fluidSlotIn = FLUID_SLOT_A
 		fluidSlotOut = FLUID_SLOT_B
 	end
-end
+end)
 
-local getTargetPressure, setTargetPressure = observable(0.0, onTargetPressureChange)
-local getReverseFlowMode, setReverseFlowMode = observable(false, onReverseFlowModeChange)
-local getDisplayEnabled, setDisplayEnabled = observable(false, function(v)
+local _, setDisplayEnabled = observable(false, function(v)
 	display:setEnabled(v)
 end)
 
