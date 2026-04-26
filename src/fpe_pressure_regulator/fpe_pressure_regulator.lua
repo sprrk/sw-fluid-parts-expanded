@@ -46,12 +46,12 @@ end
 local display = DotMatrixDisplay({ x = 0, y = 0, z = 0 }, 4)
 
 -- TODO: Make configurable via composite
-local pid = PID({ Kp = 0.5, Ki = 1.0, Kd = 0.01, min = 0, max = 1, b = 0.3, c = 0, N = 20 })
+local pid = PID({ Kp = 0.5, Ki = 1.0, Kd = 0.01, min = 0, max = 1, b = 0.3, c = 0, N = 20, antiWindupMode = "clamp" })
 
 ---@param pressure number
 ---@return nil
 local function run(pressure)
-	local flowFactor = pid(targetPressure, pressure)
+	local flowFactor = pid:run(targetPressure, pressure)
 
 	if backPressureMode then
 		flowFactor = clamp(1 - flowFactor, 0, 1)
