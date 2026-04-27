@@ -47,7 +47,7 @@ local display = DotMatrixDisplay({ x = 0, y = 0, z = 0 }, 4)
 
 ---@type AdvancedPIDSettings
 local pidSettings = {
-	Kp = 0.5,
+	Kp = 1.0,
 	Ki = 1.0,
 	Kd = 0.01,
 	min = 0,
@@ -128,11 +128,10 @@ function onTick(_)
 	if compositeOk then
 		local boolValues = composite.bool_values
 
-		display:setFlipped(boolValues[2])
-		backPressureMode = boolValues[3]
-		setReverseFlowMode(boolValues[4])
-
-		updatePIDSettings(boolValues[5])
+		display:setFlipped(boolValues[1])
+		backPressureMode = boolValues[2]
+		setReverseFlowMode(boolValues[3])
+		updatePIDSettings(boolValues[4])
 	end
 
 	setDisplayEnabled(component.getInputLogicSlotBool(DISPLAY_SLOT))

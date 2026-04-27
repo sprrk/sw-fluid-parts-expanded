@@ -44,10 +44,15 @@ The default configuration can be overridden via composite data:
     <logic_node label="Target Pressure" mode="1" type="1" description="Number input for the target pressure.">
 			<position/>
 		</logic_node>
-    <logic_node label="Settings" mode="1" type="5" description="Bool input values:
-2: Flip display
-3: Back-pressure mode
-4: Reverse flow direction">
+    <logic_node label="Settings" mode="1" type="5" description="Bool values:
+1: Flip display
+2: Back-pressure mode
+3: Reverse flow direction
+4: Override PID values
+Float values:
+1: P (default: 1.0)
+2: I (default: 1.0)
+3: D (default: 0.01)">
 			<position/>
 		</logic_node>
 		<logic_node label="Display" mode="1" type="0" description="Enables the display when receiving an on signal.">
