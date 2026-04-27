@@ -30,7 +30,7 @@ local function AdvancedPID(settings)
 
 	local _min, _max = math.min, math.max
 
-	local defaultDt = 1 / 60
+	local DT = 1 / 62 -- The game normally runs at 62 ticks per second.
 
 	local Kp ---@type number
 	local Ki ---@type number
@@ -75,9 +75,8 @@ local function AdvancedPID(settings)
 
 	---@param sp number Setpoint
 	---@param pv number Process variable
-	---@param dt number Time step
 	---@return number derivative Derivative term
-	local function _calculateDerivative(sp, pv, dt)
+	local function _calculateDerivative(sp, pv)
 		-- Weighted error for derivative term: c*sp - pv
 		-- When c=0: derivative acts on -pv (measurement only, no kick)
 		-- When c=1: derivative acts on sp-pv = error (kick on SP change)
@@ -88,7 +87,7 @@ local function AdvancedPID(settings)
 			prevErrorForD = weightedErrorForD
 		end
 
-		local rawDerivative = (weightedErrorForD - prevErrorForD) / dt
+		local rawDerivative = (weightedErrorForD - prevErrorForD) / DT
 		prevErrorForD = weightedErrorForD
 
 		local filteredDerivative = prevFilteredDerivative + derivativeAlpha * (rawDerivative - prevFilteredDerivative)
@@ -100,25 +99,23 @@ local function AdvancedPID(settings)
 	---@param error number Error
 	---@param proportional number Calculated P
 	---@param derivative number Calculated D
-	---@param dt number Time step
 	---@return number integral Integral term
-	local function _calculateIntegralClamp(error, proportional, derivative, dt)
+	local function _calculateIntegralClamp(error, proportional, derivative)
 		-- Output without integral for anti-windup clamping
 		local outputWithoutIntegral = proportional + derivative
 
 		-- Clamp integral to keep total output in bounds
 		local integralMin = min - outputWithoutIntegral
 		local integralMax = max - outputWithoutIntegral
-		local newIntegral = integral + Ki * error * dt
+		local newIntegral = integral + Ki * error * DT
 		return _max(integralMin, _min(integralMax, newIntegral))
 	end
 
 	---@param error number Error
 	---@param proportional number Calculated P
 	---@param derivative number Calculated D
-	---@param dt number Time step
 	---@return number integral Integral term
-	local function _calculateIntegralBackcalculation(error, proportional, derivative, dt)
+	local function _calculateIntegralBackcalculation(error, proportional, derivative)
 		local output = proportional + integral + derivative
 
 		if output > max then
@@ -126,27 +123,26 @@ local function AdvancedPID(settings)
 		elseif output < min then
 			return min - proportional - derivative
 		else
-			return integral + Ki * error * dt
+			return integral + Ki * error * DT
 		end
 	end
 
 	---@param error number Error
 	---@param proportional number Calculated P
 	---@param derivative number Calculated D
-	---@param dt number Time step
 	---@return number integral Integral term
-	local function _calculateIntegralFreeze(error, proportional, derivative, dt)
+	local function _calculateIntegralFreeze(error, proportional, derivative)
 		local output = proportional + integral + derivative
 
 		if output > max or output < min then
 			return integral -- frozen
 		else
-			return integral + Ki * error * dt
+			return integral + Ki * error * DT
 		end
 	end
 
 	---@param mode AdvancedPIDAntiWindupMode
-	---@return fun(error: number, proportional: number,derivative: number, dt: number): number
+	---@return fun(error: number, proportional: number, derivative: number): number
 	local function _makeIntegralCalculationFunc(mode)
 		if mode == "clamp" then
 			return _calculateIntegralClamp
@@ -163,16 +159,13 @@ local function AdvancedPID(settings)
 
 	---@param sp number Setpoint
 	---@param pv number Process variable
-	---@param dt number? Seconds since last call (default: 1/60)
 	---@return number output Clamped controller output
-	function instance:run(sp, pv, dt)
-		dt = dt or defaultDt
-
+	function instance:run(sp, pv)
 		local proportional = _calculateProportional(sp, pv)
-		local derivative = _calculateDerivative(sp, pv, dt)
+		local derivative = _calculateDerivative(sp, pv)
 
 		local error = sp - pv
-		integral = _calculateIntegral(error, proportional, derivative, dt)
+		integral = _calculateIntegral(error, proportional, derivative)
 
 		local output = proportional + integral + derivative
 
