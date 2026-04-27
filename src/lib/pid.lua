@@ -42,10 +42,10 @@ local function AdvancedPID(settings)
 		Kd = newSettings.Kd
 		min = newSettings.min
 		max = newSettings.max
-		b = newSettings.b or b
-		c = newSettings.c or c
-		N = newSettings.N or N
-		antiWindupMode = newSettings.antiWindupMode or antiWindupMode
+		b = newSettings.b or 1
+		c = newSettings.c or 0
+		N = newSettings.N or 20
+		antiWindupMode = newSettings.antiWindupMode or "clamp"
 	end
 
 	local integral = 0
