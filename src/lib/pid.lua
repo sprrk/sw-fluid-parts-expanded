@@ -87,32 +87,28 @@ local function AdvancedPID(settings)
 		return Kd * filteredDerivative
 	end
 
-	---@param sp number Setpoint
-	---@param pv number Process variable
+	---@param error number Error
 	---@param proportional number Calculated P
 	---@param derivative number Calculated D
 	---@param dt number Time step
 	---@return number integral Integral term
-	local function _calculateIntegralClamp(sp, pv, proportional, derivative, dt)
+	local function _calculateIntegralClamp(error, proportional, derivative, dt)
 		-- Output without integral for anti-windup clamping
 		local outputWithoutIntegral = proportional + derivative
 
 		-- Clamp integral to keep total output in bounds
 		local integralMin = min - outputWithoutIntegral
 		local integralMax = max - outputWithoutIntegral
-		local error = sp - pv
 		local newIntegral = integral + Ki * error * dt
 		return _max(integralMin, _min(integralMax, newIntegral))
 	end
 
-	---@param sp number Setpoint
-	---@param pv number Process variable
+	---@param error number Error
 	---@param proportional number Calculated P
 	---@param derivative number Calculated D
 	---@param dt number Time step
 	---@return number integral Integral term
-	local function _calculateIntegralBackcalculation(sp, pv, proportional, derivative, dt)
-		local error = sp - pv
+	local function _calculateIntegralBackcalculation(error, proportional, derivative, dt)
 		local output = proportional + integral + derivative
 
 		if output > max then
@@ -124,13 +120,12 @@ local function AdvancedPID(settings)
 		end
 	end
 
-	---@param sp number Setpoint
-	---@param pv number Process variable
+	---@param error number Error
 	---@param proportional number Calculated P
 	---@param derivative number Calculated D
 	---@param dt number Time step
 	---@return number integral Integral term
-	local function _calculateIntegralFreeze(sp, pv, proportional, derivative, dt)
+	local function _calculateIntegralFreeze(error, proportional, derivative, dt)
 		local output = proportional + integral + derivative
 
 		if output > max or output < min then
@@ -141,7 +136,7 @@ local function AdvancedPID(settings)
 	end
 
 	---@param mode AdvancedPIDAntiWindupMode
-	---@return fun(sp: number, pv:number, proportional:number,derivative:number, dt:number): number
+	---@return fun(error: number, proportional: number,derivative: number, dt: number): number
 	local function _makeIntegralCalculationFunc(mode)
 		if mode == "clamp" then
 			return _calculateIntegralClamp
@@ -166,7 +161,8 @@ local function AdvancedPID(settings)
 		local proportional = _calculateProportional(sp, pv)
 		local derivative = _calculateDerivative(sp, pv, dt)
 
-		integral = _calculateIntegral(sp, pv, proportional, derivative, dt)
+		local error = sp - pv
+		integral = _calculateIntegral(error, proportional, derivative, dt)
 
 		local output = proportional + integral + derivative
 
