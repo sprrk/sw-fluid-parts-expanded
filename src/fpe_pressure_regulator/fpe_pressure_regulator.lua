@@ -55,7 +55,7 @@ local pidSettings = {
 	b = 0.3,
 	c = 0,
 	derivativeSmoothing = 3,
-	antiWindupMode = "clamp",
+	antiWindupMode = "backcalculation",
 }
 
 local pid = PID(pidSettings)
@@ -119,6 +119,7 @@ end)
 function onTick(_)
 	if not initialized then
 		component.fluidContentsSetCapacity(FLUID_VOLUME_BUFFER, FLUID_VOLUME_SIZE_BUFFER)
+		display:setEnabled(false)
 		display:setText(0.00)
 		initialized = true
 	end

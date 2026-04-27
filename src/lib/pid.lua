@@ -1,7 +1,6 @@
 ---@alias AdvancedPIDAntiWindupMode
----| "clamp"           -- Default: bounds integral to available headroom
----| "backcalculation" -- Reset integral to exact saturation value
----| "freeze"          -- Stop integral update during saturation
+---| "backcalculation" -- Fast recovery, aggressive correction; reset integral to exact saturation value
+---| "conditional"     -- Smoother but slower recovery; freeze integral if it would worsen saturation
 
 ---@class AdvancedPIDSettings
 ---@field Kp number Proportional gain. Higher = faster response, more oscillation
@@ -12,7 +11,7 @@
 ---@field b number? Setpoint weight on P, range [0..1] (default: 1). Use 0 for no kick on SP change, 1 for tracking
 ---@field c number? Setpoint weight on D, range [0..1] (default: 0). Use 0 for no kick on SP change (recommended), 1 for rare cases
 ---@field derivativeSmoothing number? Derivative smoothing in ticks, 1=instant/noisy, higher=smoother/slower (default: 3)
----@field antiWindupMode AdvancedPIDAntiWindupMode? Anti-windup strategy (default: "clamp")
+---@field antiWindupMode AdvancedPIDAntiWindupMode? Anti-windup strategy (default: "backcalculation")
 
 ---@param settings AdvancedPIDSettings
 ---@return AdvancedPID
@@ -52,7 +51,7 @@ local function AdvancedPID(settings)
 		b = newSettings.b or 1
 		c = newSettings.c or 0
 		derivativeSmoothing = _max(1, settings.derivativeSmoothing or 3)
-		antiWindupMode = newSettings.antiWindupMode or "clamp"
+		antiWindupMode = newSettings.antiWindupMode or "backcalculation"
 
 		derivativeAlpha = 1 / (1 + derivativeSmoothing)
 	end
@@ -99,29 +98,15 @@ local function AdvancedPID(settings)
 	---@param error number Error
 	---@param proportional number Calculated P
 	---@param derivative number Calculated D
-	---@return number integral Integral term
-	local function _calculateIntegralClamp(error, proportional, derivative)
-		-- Output without integral for anti-windup clamping
-		local outputWithoutIntegral = proportional + derivative
-
-		-- Clamp integral to keep total output in bounds
-		local integralMin = min - outputWithoutIntegral
-		local integralMax = max - outputWithoutIntegral
-		local newIntegral = integral + Ki * error * DT
-		return _max(integralMin, _min(integralMax, newIntegral))
-	end
-
-	---@param error number Error
-	---@param proportional number Calculated P
-	---@param derivative number Calculated D
-	---@return number integral Integral term
+	---@return number integral Updated integral
 	local function _calculateIntegralBackcalculation(error, proportional, derivative)
-		local output = proportional + integral + derivative
+		local pd = proportional + derivative
+		local output = pd + integral
 
 		if output > max then
-			return max - proportional - derivative
+			return max - pd
 		elseif output < min then
-			return min - proportional - derivative
+			return min - pd
 		else
 			return integral + Ki * error * DT
 		end
@@ -130,26 +115,28 @@ local function AdvancedPID(settings)
 	---@param error number Error
 	---@param proportional number Calculated P
 	---@param derivative number Calculated D
-	---@return number integral Integral term
-	local function _calculateIntegralFreeze(error, proportional, derivative)
-		local output = proportional + integral + derivative
+	---@return number integral Updated integral
+	local function _calculateIntegralConditional(error, proportional, derivative)
+		local pd = proportional + derivative
+		local output = pd + integral
 
-		if output > max or output < min then
-			return integral -- frozen
-		else
-			return integral + Ki * error * DT
+		-- Freeze if saturated and integral would further increase saturation
+		if (output > max and error > 0) or (output < min and error < 0) then
+			return integral -- Freeze
 		end
+
+		-- Clamp integral to keep total output in bounds
+		local newIntegral = integral + Ki * error * DT
+		return _max(min - pd, _min(max - pd, newIntegral))
 	end
 
 	---@param mode AdvancedPIDAntiWindupMode
 	---@return fun(error: number, proportional: number, derivative: number): number
 	local function _makeIntegralCalculationFunc(mode)
-		if mode == "clamp" then
-			return _calculateIntegralClamp
-		elseif mode == "backcalculation" then
+		if mode == "backcalculation" then
 			return _calculateIntegralBackcalculation
-		elseif mode == "freeze" then
-			return _calculateIntegralFreeze
+		elseif mode == "conditional" then
+			return _calculateIntegralConditional
 		else
 			error("Unknown anti-windup mode: " .. tostring(mode))
 		end
