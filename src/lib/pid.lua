@@ -23,6 +23,12 @@ local function AdvancedPID(settings)
 	---@class (exact) AdvancedPID
 	local instance = {}
 
+	local integral = 0
+	local prevErrorForD = nil -- stores (c*sp - pv) from previous call
+	local prevFilteredDerivative = 0
+
+	local _min, _max = math.min, math.max
+
 	local defaultDt = 1 / 60
 
 	local Kp = settings.Kp
@@ -48,11 +54,11 @@ local function AdvancedPID(settings)
 		antiWindupMode = newSettings.antiWindupMode or "clamp"
 	end
 
-	local integral = 0
-	local prevErrorForD = nil -- stores (c*sp - pv) from previous call
-	local prevFilteredDerivative = 0
-
-	local _min, _max = math.min, math.max
+	function instance:reset()
+		integral = 0
+		prevErrorForD = nil
+		prevFilteredDerivative = 0
+	end
 
 	---@param sp number Setpoint
 	---@param pv number Process variable
