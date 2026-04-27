@@ -11,13 +11,13 @@
 ---@field max number Output upper bound (saturation limit). Must be > min
 ---@field b number? Setpoint weight on P, range [0..1] (default: 1). Use 0 for no kick on SP change, 1 for tracking
 ---@field c number? Setpoint weight on D, range [0..1] (default: 0). Use 0 for no kick on SP change (recommended), 1 for rare cases
----@field N number? Derivative filter pole in rad/s (default: 20). Higher = less filtering, more noise
+---@field derivativeSmoothing number? Derivative smoothing in ticks, 1=instant/noisy, higher=smoother/slower (default: 3)
 ---@field antiWindupMode AdvancedPIDAntiWindupMode? Anti-windup strategy (default: "clamp")
 
 ---@param settings AdvancedPIDSettings
 ---@return AdvancedPID
 --- A PID controller. Example usage:
---- local pid = PID({ Kp = 0.5, Ki = 1.0, Kd = 0.01, min = 0, max = 1, b = 0.3, c = 0, N = 20 })
+--- local pid = PID({ Kp = 0.5, Ki = 1.0, Kd = 0.01, min = 0, max = 1, b = 0.3, c = 0, derivativeSmoothing = 3 })
 --- local output = pid:run(setpoint, processVariable)
 local function AdvancedPID(settings)
 	---@class (exact) AdvancedPID
@@ -26,20 +26,21 @@ local function AdvancedPID(settings)
 	local integral = 0
 	local prevErrorForD = nil -- stores (c*sp - pv) from previous call
 	local prevFilteredDerivative = 0
+	local derivativeAlpha ---@type number
 
 	local _min, _max = math.min, math.max
 
 	local defaultDt = 1 / 60
 
-	local Kp = settings.Kp
-	local Ki = settings.Ki
-	local Kd = settings.Kd
-	local min = settings.min
-	local max = settings.max
-	local b = settings.b or 1
-	local c = settings.c or 0
-	local N = settings.N or 20
-	local antiWindupMode = settings.antiWindupMode or "clamp"
+	local Kp ---@type number
+	local Ki ---@type number
+	local Kd ---@type number
+	local min ---@type number
+	local max ---@type number
+	local b ---@type number
+	local c ---@type number
+	local derivativeSmoothing ---@type number
+	local antiWindupMode ---@type AdvancedPIDAntiWindupMode
 
 	---@param newSettings AdvancedPIDSettings
 	function instance:updateSettings(newSettings)
@@ -50,9 +51,13 @@ local function AdvancedPID(settings)
 		max = newSettings.max
 		b = newSettings.b or 1
 		c = newSettings.c or 0
-		N = newSettings.N or 20
+		derivativeSmoothing = _max(1, settings.derivativeSmoothing or 3)
 		antiWindupMode = newSettings.antiWindupMode or "clamp"
+
+		derivativeAlpha = 1 / (1 + derivativeSmoothing)
 	end
+
+	instance:updateSettings(settings) -- Initialize settings immediately on creation
 
 	function instance:reset()
 		integral = 0
@@ -86,8 +91,7 @@ local function AdvancedPID(settings)
 		local rawDerivative = (weightedErrorForD - prevErrorForD) / dt
 		prevErrorForD = weightedErrorForD
 
-		local filterAlpha = (N * dt) / (1 + N * dt)
-		local filteredDerivative = prevFilteredDerivative + filterAlpha * (rawDerivative - prevFilteredDerivative)
+		local filteredDerivative = prevFilteredDerivative + derivativeAlpha * (rawDerivative - prevFilteredDerivative)
 		prevFilteredDerivative = filteredDerivative
 
 		return Kd * filteredDerivative
