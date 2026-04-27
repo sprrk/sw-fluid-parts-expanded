@@ -145,7 +145,7 @@ local function AdvancedPID(settings)
 		elseif mode == "freeze" then
 			return _calculateIntegralFreeze
 		else
-			error()
+			error("Unknown anti-windup mode: " .. tostring(mode))
 		end
 	end
 
