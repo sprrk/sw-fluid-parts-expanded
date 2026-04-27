@@ -45,8 +45,8 @@ end
 
 local display = DotMatrixDisplay({ x = 0, y = 0, z = 0 }, 4)
 
--- TODO: Make configurable via composite
-local pid = PID({
+---@type AdvancedPIDSettings
+local pidSettings = {
 	Kp = 0.5,
 	Ki = 1.0,
 	Kd = 0.01,
@@ -56,7 +56,9 @@ local pid = PID({
 	c = 0,
 	derivativeSmoothing = 3,
 	antiWindupMode = "clamp",
-})
+}
+
+local pid = PID(pidSettings)
 
 ---@param pressure number
 ---@return nil
@@ -102,6 +104,18 @@ local _, setDisplayEnabled = observable(false, function(v)
 	display:setEnabled(v)
 end)
 
+local _, updatePIDSettings = observable(false, function(newValue, oldValue)
+	if not oldValue and newValue then -- Raising edge
+		local composite, _ = component.getInputLogicSlotComposite(COMPOSITE_SLOT)
+		local floatValues = composite.float_values
+		pidSettings.Kp = floatValues[1]
+		pidSettings.Ki = floatValues[2]
+		pidSettings.Kd = floatValues[3]
+		pid:updateSettings(pidSettings)
+		pid:reset()
+	end
+end)
+
 function onTick(_)
 	if not initialized then
 		component.fluidContentsSetCapacity(FLUID_VOLUME_BUFFER, FLUID_VOLUME_SIZE_BUFFER)
@@ -112,16 +126,13 @@ function onTick(_)
 	local composite, compositeOk = component.getInputLogicSlotComposite(COMPOSITE_SLOT)
 
 	if compositeOk then
-		local floatValues = composite.float_values
 		local boolValues = composite.bool_values
 
 		display:setFlipped(boolValues[2])
 		backPressureMode = boolValues[3]
 		setReverseFlowMode(boolValues[4])
 
-		if boolValues[5] then
-			-- TODO: Override default PID values with ones from floatValues
-		end
+		updatePIDSettings(boolValues[5])
 	end
 
 	setDisplayEnabled(component.getInputLogicSlotBool(DISPLAY_SLOT))
