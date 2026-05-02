@@ -5,8 +5,8 @@
       <author>Blender User</author>
       <authoring_tool>Blender 4.5.9 LTS commit date:2026-04-20, commit time:14:24, hash:8bf95cbd38d1</authoring_tool>
     </contributor>
-    <created>2026-05-02T14:25:16</created>
-    <modified>2026-05-02T14:25:16</modified>
+    <created>2026-05-02T14:32:43</created>
+    <modified>2026-05-02T14:32:43</modified>
     <unit name="meter" meter="1"/>
     <up_axis>Z_UP</up_axis>
   </asset>
@@ -104,129 +104,7 @@
               <color sid="emission">0 0 0 1</color>
             </emission>
             <diffuse>
-              <color sid="diffuse">0.5840744 0.6938726 0.4507861 1</color>
-            </diffuse>
-            <index_of_refraction>
-              <float sid="ior">1.5</float>
-            </index_of_refraction>
-          </lambert>
-        </technique>
-      </profile_COMMON>
-    </effect>
-    <effect id="dark_gray_015-effect">
-      <profile_COMMON>
-        <technique sid="common">
-          <lambert>
-            <emission>
-              <color sid="emission">0 0 0 1</color>
-            </emission>
-            <diffuse>
-              <color sid="diffuse">0.3371614 0.3371639 0.3371637 1</color>
-            </diffuse>
-            <index_of_refraction>
-              <float sid="ior">1.5</float>
-            </index_of_refraction>
-          </lambert>
-        </technique>
-      </profile_COMMON>
-    </effect>
-    <effect id="dark_gray_018-effect">
-      <profile_COMMON>
-        <technique sid="common">
-          <lambert>
-            <emission>
-              <color sid="emission">0 0 0 1</color>
-            </emission>
-            <diffuse>
-              <color sid="diffuse">0.3371614 0.3371639 0.3371637 1</color>
-            </diffuse>
-            <index_of_refraction>
-              <float sid="ior">1.5</float>
-            </index_of_refraction>
-          </lambert>
-        </technique>
-      </profile_COMMON>
-    </effect>
-    <effect id="MATERIALglass_002-effect">
-      <profile_COMMON>
-        <technique sid="common">
-          <lambert>
-            <emission>
-              <color sid="emission">0 0 0 1</color>
-            </emission>
-            <diffuse>
-              <color sid="diffuse">0.627451 0.627451 0.7843137 1</color>
-            </diffuse>
-            <transparent opaque="A_ONE">
-              <color sid="alpha">0 0 0 0.5019608</color>
-            </transparent>
-            <index_of_refraction>
-              <float sid="ior">1.5</float>
-            </index_of_refraction>
-          </lambert>
-        </technique>
-      </profile_COMMON>
-    </effect>
-    <effect id="editable1_017-effect">
-      <profile_COMMON>
-        <technique sid="common">
-          <lambert>
-            <emission>
-              <color sid="emission">0 0 0 1</color>
-            </emission>
-            <diffuse>
-              <color sid="diffuse">1 0.4941176 0 1</color>
-            </diffuse>
-            <index_of_refraction>
-              <float sid="ior">1.5</float>
-            </index_of_refraction>
-          </lambert>
-        </technique>
-      </profile_COMMON>
-    </effect>
-    <effect id="white_001-effect">
-      <profile_COMMON>
-        <technique sid="common">
-          <lambert>
-            <emission>
-              <color sid="emission">0 0 0 1</color>
-            </emission>
-            <diffuse>
-              <color sid="diffuse">1 1 1 1</color>
-            </diffuse>
-            <index_of_refraction>
-              <float sid="ior">1.5</float>
-            </index_of_refraction>
-          </lambert>
-        </technique>
-      </profile_COMMON>
-    </effect>
-    <effect id="editable2_009-effect">
-      <profile_COMMON>
-        <technique sid="common">
-          <lambert>
-            <emission>
-              <color sid="emission">0 0 0 1</color>
-            </emission>
-            <diffuse>
-              <color sid="diffuse">0.6104922 0.4910214 0 1</color>
-            </diffuse>
-            <index_of_refraction>
-              <float sid="ior">1.5</float>
-            </index_of_refraction>
-          </lambert>
-        </technique>
-      </profile_COMMON>
-    </effect>
-    <effect id="__auto_10_002-effect">
-      <profile_COMMON>
-        <technique sid="common">
-          <lambert>
-            <emission>
-              <color sid="emission">0 0 0 1</color>
-            </emission>
-            <diffuse>
-              <color sid="diffuse">0.2156863 0.4901961 0 1</color>
+              <color sid="diffuse">0.63132 0.75 0.4872502 1</color>
             </diffuse>
             <index_of_refraction>
               <float sid="ior">1.5</float>
@@ -255,27 +133,6 @@
     </material>
     <material id="lcd_background-material" name="lcd_background">
       <instance_effect url="#lcd_background-effect"/>
-    </material>
-    <material id="dark_gray_015-material" name="dark_gray.015">
-      <instance_effect url="#dark_gray_015-effect"/>
-    </material>
-    <material id="dark_gray_018-material" name="dark_gray.018">
-      <instance_effect url="#dark_gray_018-effect"/>
-    </material>
-    <material id="MATERIALglass_002-material" name="MATERIALglass.002">
-      <instance_effect url="#MATERIALglass_002-effect"/>
-    </material>
-    <material id="editable1_017-material" name="editable1.017">
-      <instance_effect url="#editable1_017-effect"/>
-    </material>
-    <material id="white_001-material" name="white.001">
-      <instance_effect url="#white_001-effect"/>
-    </material>
-    <material id="editable2_009-material" name="editable2.009">
-      <instance_effect url="#editable2_009-effect"/>
-    </material>
-    <material id="__auto_10_002-material" name="__auto_10.002">
-      <instance_effect url="#__auto_10_002-effect"/>
     </material>
   </library_materials>
   <library_geometries>
@@ -313,11 +170,11 @@
         <vertices id="Cube_028-mesh-vertices">
           <input semantic="POSITION" source="#Cube_028-mesh-positions"/>
         </vertices>
-        <triangles material="editable1_007-material" count="16">
+        <triangles material="editable1_007-material" count="32">
           <input semantic="VERTEX" source="#Cube_028-mesh-vertices" offset="0"/>
           <input semantic="NORMAL" source="#Cube_028-mesh-normals" offset="1"/>
           <input semantic="TEXCOORD" source="#Cube_028-mesh-map-0" offset="2" set="0"/>
-          <p>217 207 621 208 207 622 209 207 623 213 208 624 217 208 625 209 208 626 211 209 627 218 209 628 210 209 629 214 210 630 212 210 631 206 210 632 215 211 633 206 211 634 207 211 635 212 212 636 219 212 637 211 212 638 210 213 639 221 213 640 213 213 641 216 214 642 207 214 643 208 214 644 217 372 1116 216 372 1117 208 372 1118 213 373 1119 221 373 1120 217 373 1121 211 374 1122 219 374 1123 218 374 1124 214 375 1125 220 375 1126 212 375 1127 215 376 1128 214 376 1129 206 376 1130 212 377 1131 220 377 1132 219 377 1133 210 378 1134 218 378 1135 221 378 1136 216 379 1137 215 379 1138 207 379 1139</p>
+          <p>217 207 621 208 207 622 209 207 623 213 208 624 217 208 625 209 208 626 211 209 627 218 209 628 210 209 629 214 210 630 212 210 631 206 210 632 215 211 633 206 211 634 207 211 635 212 212 636 219 212 637 211 212 638 210 213 639 221 213 640 213 213 641 216 214 642 207 214 643 208 214 644 223 220 660 228 220 661 229 220 662 222 221 663 233 221 664 228 221 665 226 222 666 231 222 667 232 222 668 223 223 669 230 223 670 224 223 671 226 224 672 233 224 673 227 224 674 225 225 675 230 225 676 231 225 677 228 226 678 232 226 679 230 226 680 217 372 1116 216 372 1117 208 372 1118 213 373 1119 221 373 1120 217 373 1121 211 374 1122 219 374 1123 218 374 1124 214 375 1125 220 375 1126 212 375 1127 215 376 1128 214 376 1129 206 376 1130 212 377 1131 220 377 1132 219 377 1133 210 378 1134 218 378 1135 221 378 1136 216 379 1137 215 379 1138 207 379 1139 223 383 1149 222 383 1150 228 383 1151 222 384 1152 227 384 1153 233 384 1154 226 385 1155 225 385 1156 231 385 1157 223 386 1158 229 386 1159 230 386 1160 226 387 1161 232 387 1162 233 387 1163 225 388 1164 224 388 1165 230 388 1166 230 389 1167 229 389 1168 228 389 1169 228 390 1170 233 390 1171 232 390 1172 232 391 1173 231 391 1174 230 391 1175</p>
         </triangles>
         <triangles material="editable2_008-material" count="16">
           <input semantic="VERTEX" source="#Cube_028-mesh-vertices" offset="0"/>
@@ -349,12 +206,6 @@
           <input semantic="TEXCOORD" source="#Cube_028-mesh-map-0" offset="2" set="0"/>
           <p>182 80 240 183 80 241 181 80 242 182 307 921 184 307 922 183 307 923</p>
         </triangles>
-        <triangles material="editable1_017-material" count="16">
-          <input semantic="VERTEX" source="#Cube_028-mesh-vertices" offset="0"/>
-          <input semantic="NORMAL" source="#Cube_028-mesh-normals" offset="1"/>
-          <input semantic="TEXCOORD" source="#Cube_028-mesh-map-0" offset="2" set="0"/>
-          <p>223 220 660 228 220 661 229 220 662 222 221 663 233 221 664 228 221 665 226 222 666 231 222 667 232 222 668 223 223 669 230 223 670 224 223 671 226 224 672 233 224 673 227 224 674 225 225 675 230 225 676 231 225 677 228 226 678 232 226 679 230 226 680 223 383 1149 222 383 1150 228 383 1151 222 384 1152 227 384 1153 233 384 1154 226 385 1155 225 385 1156 231 385 1157 223 386 1158 229 386 1159 230 386 1160 226 387 1161 232 387 1162 233 387 1163 225 388 1164 224 388 1165 230 388 1166 230 389 1167 229 389 1168 228 389 1169 228 390 1170 233 390 1171 232 390 1172 232 391 1173 231 391 1174 230 391 1175</p>
-        </triangles>
       </mesh>
     </geometry>
   </library_geometries>
@@ -381,27 +232,6 @@
                 <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
               </instance_material>
               <instance_material symbol="lcd_background-material" target="#lcd_background-material">
-                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
-              </instance_material>
-              <instance_material symbol="dark_gray_015-material" target="#dark_gray_015-material">
-                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
-              </instance_material>
-              <instance_material symbol="dark_gray_018-material" target="#dark_gray_018-material">
-                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
-              </instance_material>
-              <instance_material symbol="MATERIALglass_002-material" target="#MATERIALglass_002-material">
-                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
-              </instance_material>
-              <instance_material symbol="editable1_017-material" target="#editable1_017-material">
-                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
-              </instance_material>
-              <instance_material symbol="white_001-material" target="#white_001-material">
-                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
-              </instance_material>
-              <instance_material symbol="editable2_009-material" target="#editable2_009-material">
-                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
-              </instance_material>
-              <instance_material symbol="__auto_10_002-material" target="#__auto_10_002-material">
                 <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
               </instance_material>
             </technique_common>
