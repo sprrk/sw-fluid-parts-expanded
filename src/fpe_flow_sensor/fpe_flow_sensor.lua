@@ -1,10 +1,19 @@
-local FILTERS = require("../lib/fluid_filters").ALL
+local observable = require("sw-lua-lib/observer/simple_observable")
+local DotMatrixDisplay = require("../lib/dot_matrix_display")
+local createTimer = require("sw-lua-lib/timer/callback_timer")
+local clamp = require("sw-lua-lib/extramath/clamp")
+local EMAFilter = require("sw-lua-lib/dsp/exponential_moving_average")
+
+local FILTERS = require("../lib/fluid_filters")
+local FILTERS_ALL = FILTERS.ALL
 local FLUID_TYPES = require("../lib/fluid_types")
 
+local SETTINGS_SLOT = 0
+local ELECTRIC_SLOT = 0
+local DISPLAY_SLOT = 0
 local FLUID_SLOT_A = 0
 local FLUID_SLOT_B = 1
 local FLOW_OUTPUT_SLOT = 0
-local DATA_OUTPUT_SLOT = 0
 local FLUID_VOLUME = 0
 local FLUID_VOLUME_SIZE = 1.0 -- Liters
 
@@ -12,73 +21,254 @@ local FLUID_VOLUME_SIZE = 1.0 -- Liters
 local LIQUID_RATIO = 600
 local GAS_RATIO = 36000 -- 10 * 60 * 60; 10 * ticks/sec * max atm?
 
+local ELECTRIC_USAGE = 0.0005
+
 local initialized = false
+local powered = false
+local errorState = false
+local direction = 1
 
----@param fluid_type integer
----@param tick_time number
----@param ratio number
----@return number
-local function getAmount(fluid_type, tick_time, ratio)
-	return ((component.fluidContentsGetFluidTypeVolume(FLUID_VOLUME, fluid_type) or 0) / tick_time) * ratio
+local FLUID_FILTER_TO_VOLUME_MAPPING = {
+	-- Liquid:
+	[FILTERS.WATER] = { type = FLUID_TYPES.WATER, ratio = LIQUID_RATIO },
+	[FILTERS.DIESEL] = { type = FLUID_TYPES.DIESEL, ratio = LIQUID_RATIO },
+	[FILTERS.JET] = { type = FLUID_TYPES.JET, ratio = LIQUID_RATIO },
+	[FILTERS.OIL] = { type = FLUID_TYPES.OIL, ratio = LIQUID_RATIO },
+	[FILTERS.SEA_WATER] = { type = FLUID_TYPES.SEA_WATER, ratio = LIQUID_RATIO },
+	[FILTERS.SLURRY] = { type = FLUID_TYPES.SLURRY, ratio = LIQUID_RATIO },
+	[FILTERS.SATURATED_SLURRY] = { type = FLUID_TYPES.SATURATED_SLURRY, ratio = LIQUID_RATIO },
+	-- Gas:
+	[FILTERS.AIR] = { type = FLUID_TYPES.AIR, ratio = GAS_RATIO },
+	[FILTERS.CO2] = { type = FLUID_TYPES.CO2, ratio = GAS_RATIO },
+	[FILTERS.STEAM] = { type = FLUID_TYPES.STEAM, ratio = GAS_RATIO },
+	[FILTERS.O2] = { type = FLUID_TYPES.O2, ratio = GAS_RATIO },
+	[FILTERS.N2] = { type = FLUID_TYPES.N2, ratio = GAS_RATIO },
+	[FILTERS.H2] = { type = FLUID_TYPES.H2, ratio = GAS_RATIO },
+}
+
+local display = DotMatrixDisplay({ x = 0, y = 0, z = 0 }, 4)
+
+---@return boolean
+local function useEnergy()
+	-- TODO: Extract to lib
+	local chargeFactor, ok = component.slotElectricGetChargeFactor(ELECTRIC_SLOT)
+	if ok and chargeFactor > ELECTRIC_USAGE then
+		component.slotElectricRemoveCharge(ELECTRIC_SLOT, ELECTRIC_USAGE)
+		return true
+	else
+		return false
+	end
 end
 
-local function initialize()
-	component.fluidContentsSetCapacity(FLUID_VOLUME, FLUID_VOLUME_SIZE)
-	initialized = true
-end
+---@param volumeIndex integer
+---@param volumeSize number
+---@param slotIn integer
+---@param slotOut integer
+---@return FlowSensor
+local function FlowSensor(volumeIndex, volumeSize, slotIn, slotOut)
+	---@class (exact) FlowSensor
+	local instance = {}
 
-function onTick(tick_time)
-	if not initialized then
-		initialize()
+	local flowRate = 0
+	local enabled = false
+	local smooth, updateSmoothing, resetSmoothing = EMAFilter({ alpha = 0.3 })
+	local getVolumeContents = component.fluidContentsGetFluidTypeVolume
+
+	function instance:init()
+		component.fluidContentsSetCapacity(volumeIndex, volumeSize)
 	end
 
-	component.slotFluidResolveFlowToSlot(
-		FLUID_SLOT_A,
-		FLUID_SLOT_B,
-		0, -- pump_pressure
-		1, -- flow_factor
-		false,
-		FILTERS,
-		FLUID_VOLUME
-	)
+	---@param fluid_type integer
+	---@param ratio number
+	---@return number
+	local function getAmount(fluid_type, ratio)
+		return (getVolumeContents(volumeIndex, fluid_type) or 0) * ratio
+	end
 
-	local water = getAmount(FLUID_TYPES.WATER, tick_time, LIQUID_RATIO)
-	local diesel = getAmount(FLUID_TYPES.DIESEL, tick_time, LIQUID_RATIO)
-	local jet = getAmount(FLUID_TYPES.JET, tick_time, LIQUID_RATIO)
-	local air = getAmount(FLUID_TYPES.AIR, tick_time, GAS_RATIO)
-	local co2 = getAmount(FLUID_TYPES.CO2, tick_time, GAS_RATIO)
-	local oil = getAmount(FLUID_TYPES.OIL, tick_time, LIQUID_RATIO)
-	local sea_water = getAmount(FLUID_TYPES.SEA_WATER, tick_time, LIQUID_RATIO)
-	local steam = getAmount(FLUID_TYPES.STEAM, tick_time, GAS_RATIO)
-	local slurry = getAmount(FLUID_TYPES.SLURRY, tick_time, LIQUID_RATIO)
-	local saturated_slurry = getAmount(FLUID_TYPES.SATURATED_SLURRY, tick_time, LIQUID_RATIO)
-	local o2 = getAmount(FLUID_TYPES.O2, tick_time, GAS_RATIO)
-	local n2 = getAmount(FLUID_TYPES.N2, tick_time, GAS_RATIO)
-	local h2 = getAmount(FLUID_TYPES.H2, tick_time, GAS_RATIO)
+	---@return number flow Flow rate in L/s
+	local function measureFlow()
+		return 0.0
+	end
 
-	local total_liquid = water + diesel + jet + oil + sea_water + slurry + saturated_slurry
-	local total_gas = air + co2 + steam + o2 + n2 + h2
-	local total = total_liquid + total_gas
+	---@param alpha number EMA smoothing alpha [0..1]
+	function instance:setSmoothing(alpha)
+		updateSmoothing({ alpha = clamp(alpha, 0, 1) })
+		resetSmoothing()
+	end
 
-	component.setOutputLogicSlotFloat(FLOW_OUTPUT_SLOT, total)
-	component.setOutputLogicSlotComposite(DATA_OUTPUT_SLOT, {
-		float_values = {
-			[1] = water,
-			[2] = diesel,
-			[3] = jet,
-			[4] = air,
-			[5] = co2,
-			[6] = oil,
-			[7] = sea_water,
-			[8] = steam,
-			[9] = slurry,
-			[10] = saturated_slurry,
-			[11] = o2,
-			[12] = n2,
-			[13] = h2,
-			[30] = total_liquid,
-			[31] = total_gas,
-			[32] = total,
-		},
-	})
+	---@param bitmask integer Fluid type bitmask
+	---@return boolean success
+	--- Set the fluid types to measure.
+	function instance:setFluidTypes(bitmask)
+		if bitmask < 0 then
+			-- Error: Invalid bitmask
+			return false
+		end
+
+		local fluids = {}
+
+		-- Extract the fluid types and ratios from the bitmask
+		for filter, fluidData in pairs(FLUID_FILTER_TO_VOLUME_MAPPING) do
+			if bitmask % (filter * 2) >= filter then -- Check if filter bit is in bitmask
+				table.insert(fluids, fluidData)
+			end
+		end
+
+		-- Pre-compile the measurement functions
+		local funcs = {}
+		for i = 1, #fluids do
+			local fluid = fluids[i]
+			local fluidType = fluid.type
+			local fluidRatio = fluid.ratio
+			local f = function()
+				return getAmount(fluidType, fluidRatio)
+			end
+			table.insert(funcs, f)
+		end
+
+		measureFlow = function()
+			local total = 0
+			for i = 1, #funcs do
+				total = total + funcs[i]()
+			end
+			return total
+		end
+
+		return true
+	end
+
+	---@param enable boolean
+	function instance:setEnabled(enable)
+		if enabled ~= enable then
+			enabled = enable
+			if not enabled then
+				-- Reset smoothing and flow rate so values are correct when re-enabled
+				flowRate = 0
+				resetSmoothing()
+			end
+		end
+	end
+
+	function instance:resolveFlow()
+		component.slotFluidResolveFlowToSlot(
+			slotIn,
+			slotOut,
+			0, -- pump_pressure
+			1, -- flow_factor
+			false,
+			FILTERS_ALL,
+			volumeIndex
+		)
+
+		if enabled then
+			flowRate = smooth(measureFlow())
+		end
+	end
+
+	---@return number
+	function instance:getFlowRate()
+		return flowRate
+	end
+
+	return instance
+end
+
+local flowSensor = FlowSensor(FLUID_VOLUME, FLUID_VOLUME_SIZE, FLUID_SLOT_A, FLUID_SLOT_B)
+
+local _defaultText = "" ---@type string|number
+local _, setDisplayText = observable(_defaultText, function(text)
+	if powered then
+		display:setText(text)
+	end
+end)
+
+local _, setFluidTypeBitmask = observable(0, function(bitmask)
+	local ok = flowSensor:setFluidTypes(bitmask)
+	-- TODO: Improve error state handling; allow multiple errors
+	errorState = not ok
+end)
+
+local function updateDisplay()
+	if not errorState then
+		setDisplayText(flowSensor:getFlowRate() * direction)
+	else
+		setDisplayText("ERR")
+	end
+end
+
+local function makeDisplayUpdateTimer(fps)
+	local interval = math.floor(62 / clamp(fps, 1, 62))
+
+	return createTimer(interval, updateDisplay)
+end
+
+local displayUpdateTimer = makeDisplayUpdateTimer(2)
+
+local _, setDisplayFPS = observable(2, function(fps)
+	-- Rebuild the timer whenever the FPS setting changes
+	displayUpdateTimer = makeDisplayUpdateTimer(fps)
+end)
+
+local _, setSmoothing = observable(0.3, function(alpha)
+	flowSensor:setSmoothing(alpha)
+end)
+
+local function updateSettings()
+	local composite, ok = component.getInputLogicSlotComposite(SETTINGS_SLOT)
+	if not ok then
+		return
+	end
+	-- TODO: Read and update settings
+	--   Bool values:
+	-- x 1: Flip display
+	-- x 2: Reverse direction
+	--   Float values:
+	-- x 1: Fluid type bitmask
+	-- x 2: Smoothing (default: 0.3)
+	--   3: Mode (1=L/s, 2=L/m, 3=L/h)
+	-- x 4: Display FPS (default: 20)">
+
+	local boolValues = composite.bool_values
+
+	display:setFlipped(boolValues[1])
+
+	if boolValues[2] then -- Reverse mode
+		direction = -1
+	else
+		direction = 1
+	end
+
+	local floats = composite.float_values
+	setFluidTypeBitmask(floats[1])
+	setSmoothing(floats[2])
+	setDisplayFPS(floats[4])
+end
+
+function onTick(_)
+	if not initialized then
+		flowSensor:init()
+		initialized = true
+	end
+
+	-- TODO: Display 'ERR' when fluid type bitmask is not set
+
+	updateSettings()
+
+	powered = useEnergy()
+
+	flowSensor:setEnabled(powered)
+	flowSensor:resolveFlow()
+
+	display:setEnabled(powered and component.getInputLogicSlotBool(DISPLAY_SLOT))
+
+	component.setOutputLogicSlotFloat(FLOW_OUTPUT_SLOT, flowSensor:getFlowRate())
+
+	-- TODO: Output flow rate per enabled fluid type to composite output slot
+end
+
+function onRender()
+	if initialized and powered then
+		displayUpdateTimer()
+		display:render()
+	end
 end

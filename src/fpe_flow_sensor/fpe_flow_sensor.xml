@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<definition name="Flow Sensor" category="9" type="66" mass="0.25" value="200" flags="16384" tags="FPE,mod" mesh_data_name="fpe_flow_sensor.mesh" constraint_axis="1" max_motor_force="100" max_motor_speed="10" cable_radius="16" cable_length="-431602080" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="200" force_emitter_max_vector="1" engine_max_force="1000" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" door_lower_limit="-1" door_upper_limit="1" dynamic_max_rotation="3.141593" magnet_force="1" pump_pressure="0.01" torque_component_type="1" lua_filename="fpe_flow_sensor.lua">
-  <tooltip_properties short_description="A flow sensor with a number output for the total flow rate and a composite data output for the flow rates per fluid type, plus separate totals for liquids, gases and combined flow. All measurements are in L/s."/>
+<definition name="Flow Sensor" category="9" type="66" mass="2" value="200" flags="16384" tags="FPE,mod" mesh_data_name="fpe_flow_sensor.mesh"  mesh_0_name="fpe_flow_sensor_pixel.mesh" constraint_axis="1" max_motor_force="100" max_motor_speed="10" cable_radius="16" cable_length="-431602080" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="200" force_emitter_max_vector="1" engine_max_force="1000" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" door_lower_limit="-1" door_upper_limit="1" dynamic_max_rotation="3.141593" magnet_force="1" pump_pressure="0.01" torque_component_type="1" lua_filename="fpe_flow_sensor.lua">
+  <tooltip_properties short_description="A flow sensor that can measure the flow rate of one or more specific fluid types.
+
+This part can be configured via composite."/>
 	<sfx_datas/>
 	<surfaces>
 		<surface orientation="1" shape="3" trans_type="2">
@@ -24,16 +26,33 @@
 	</surfaces>
 	<buoyancy_surfaces/>
 	<logic_nodes>
-		<logic_node orientation="1" label="Fluid A" type="3">
+		<logic_node label="Electric" mode="1" type="4" description="Electrical input.">
 			<position/>
 		</logic_node>
-		<logic_node orientation="0" label="Fluid B" type="3">
+		<logic_node orientation="1" label="Fluid In" type="3">
 			<position/>
 		</logic_node>
-    <logic_node label="Flow" type="1" description="Total fluid flow rate in L/s.">
+		<logic_node orientation="0" label="Fluid Out" type="3">
 			<position/>
 		</logic_node>
-    <logic_node label="Flow Data" mode="0" type="5" description="Composite data containing the flow rates in L/s per fluid type:
+    <logic_node label="Flow Rate" type="1" description="Measured fluid flow rate in L/s of all enabled fluid types.">
+			<position/>
+		</logic_node>
+    <logic_node label="Settings" mode="1" type="5" description="Bool values:
+1: Flip display
+2: Reverse direction
+
+Float values:
+1: Fluid type bitmask
+2: Smoothing (default: 0.3)
+3: Scale (1=L/s, 2=L/m, 3=L/h)
+4: Display FPS (default: 2)">
+			<position x="0" y="1" z="0"/>
+		</logic_node>
+		<logic_node label="Display" mode="1" type="0" description="Enables the display when receiving an on signal.">
+			<position x="0" y="1" z="0"/>
+		</logic_node>
+    <logic_node label="Flow Data" mode="0" type="5" description="Composite data containing the flow rates in L/s per enabled fluid type:
 1: Water
 2: Diesel
 3: Jet fuel
@@ -57,6 +76,10 @@
 	<voxels>
 		<voxel flags="1" buoy_pipes="0">
 			<position/>
+			<physics_shape_rotation/>
+		</voxel>
+		<voxel flags="0" physics_shape="0">
+			<position x="0" y="1" z="0"/>
 			<physics_shape_rotation/>
 		</voxel>
 	</voxels>
