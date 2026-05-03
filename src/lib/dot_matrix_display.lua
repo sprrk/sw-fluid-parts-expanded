@@ -194,19 +194,23 @@ local function DotMatrixDisplay(origin, charCount)
 		local xOffset = (i - 1) * charOffset
 
 		local grid = CHAR_MAP[char]
+
+		if not grid then
+			-- Fallback to renderable char to prevent index errors
+			grid = CHAR_MAP[" "]
+		end
+
+		-- Aliases for efficiency
+		local matrixTranslation = matrix.translation
+		local ti = table.insert
+
 		for row = 1, fontHeight do
 			for col = 1, fontWidth do
 				if grid[row][col] == 1 then
 					if flipped then
-						table.insert(
-							buffer,
-							matrix.translation(x - xOffset - (col - 1) * pixelSize, y, z + (row - 1) * pixelSize)
-						)
+						ti(buffer, matrixTranslation(x - xOffset - (col - 1) * pixelSize, y, z + (row - 1) * pixelSize))
 					else
-						table.insert(
-							buffer,
-							matrix.translation(x + xOffset + (col - 1) * pixelSize, y, z - (row - 1) * pixelSize)
-						)
+						ti(buffer, matrixTranslation(x + xOffset + (col - 1) * pixelSize, y, z - (row - 1) * pixelSize))
 					end
 				end
 			end
