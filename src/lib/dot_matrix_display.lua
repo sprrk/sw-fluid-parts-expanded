@@ -137,6 +137,15 @@ local CHAR_MAP = {
 		_00000,
 		_00000,
 	},
+	["`"] = { -- Remapped for truncation char; ` is rare
+		_00000,
+		_00000,
+		_00000,
+		_00000,
+		_00000,
+		_00000,
+		{ 1, 0, 1, 0, 1 },
+	},
 	["E"] = {
 		_11111,
 		_10000,
@@ -156,6 +165,31 @@ local CHAR_MAP = {
 		_10001,
 	},
 }
+
+---@param charCount integer
+---@param truncateChar string
+---@return fun(value: number|integer): string
+local function makeNumberFormatter(charCount, truncateChar)
+	local strf = string.format
+
+	return function(value)
+		local digits = #tostring(math.floor(value))
+		local text = strf("%f", value)
+
+		if digits > charCount then
+			-- Too large; truncate and replace last char with truncateChar
+			return text:sub(1, charCount - 1) .. truncateChar
+		elseif digits == charCount - 1 then
+			-- This would render a trailing dot; truncate extra
+			return text:sub(1, charCount - 1)
+		else
+			-- Round last decimal properly
+			local decimals = math.max(charCount - digits - 1, 0)
+			local fmt = strf("%%.%df", decimals)
+			return strf(fmt, value)
+		end
+	end
+end
 
 ---@class (exact) DotMatrixDisplayOrigin
 ---@field x number X position
@@ -179,6 +213,8 @@ local function DotMatrixDisplay(origin, charCount)
 	local charOffset = pixelSize * (fontWidth + 1) -- 1px gap
 	local enabled = true
 	local flipped = false
+
+	local formatNumber = makeNumberFormatter(charCount, "`")
 
 	---@type string|number
 	local currentValue = ""
@@ -224,30 +260,20 @@ local function DotMatrixDisplay(origin, charCount)
 		nBuffer = 0
 	end
 
-	---@param num number
-	---@param i integer
-	---@return string
-	local function digit(num, i)
-		local b = tostring(num):byte(i) or 48 -- Default to '0'
-		if b == 46 then -- ASCII '.' = 46
-			return "."
-		else
-			return tostring(b - 48) -- ASCII '0' = 48
-		end
-	end
-
 	local function refresh()
 		-- TODO: Performance: Only update characters that have changed
 
 		clear()
+
+		local strValue
 		if type(currentValue) == "number" then
-			for i = 1, charCount do
-				addChar(digit(currentValue, i), i)
-			end
+			strValue = formatNumber(currentValue)
 		else
-			for i = 1, charCount do
-				addChar(currentValue:sub(i, i), i)
-			end
+			strValue = currentValue
+		end
+
+		for i = 1, charCount do
+			addChar(strValue:sub(i, i), i)
 		end
 	end
 
