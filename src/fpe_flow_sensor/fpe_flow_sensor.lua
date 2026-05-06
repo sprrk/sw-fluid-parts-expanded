@@ -60,6 +60,13 @@ local function useEnergy()
 	end
 end
 
+---@enum FlowSensorScaleMode
+local SCALE_MODE = {
+	sec = 1,
+	min = 60,
+	hour = 60 * 60,
+}
+
 ---@param volumeIndex integer
 ---@param volumeSize number
 ---@param slotIn integer
@@ -70,6 +77,7 @@ local function FlowSensor(volumeIndex, volumeSize, slotIn, slotOut)
 	local instance = {}
 
 	local flowRate = 0
+	local scale = 1
 	local enabled = false
 	local smooth, updateSmoothing, resetSmoothing = EMAFilter({ alpha = 0.3 })
 	local getVolumeContents = component.fluidContentsGetFluidTypeVolume
@@ -94,6 +102,11 @@ local function FlowSensor(volumeIndex, volumeSize, slotIn, slotOut)
 	function instance:setSmoothing(alpha)
 		updateSmoothing({ alpha = clamp(alpha, 0, 1) })
 		resetSmoothing()
+	end
+
+	---@param scaleMode FlowSensorScaleMode Scaling mode for output values
+	function instance:setScaleMode(scaleMode)
+		scale = scaleMode
 	end
 
 	---@param bitmask integer Fluid type bitmask
@@ -167,7 +180,7 @@ local function FlowSensor(volumeIndex, volumeSize, slotIn, slotOut)
 
 	---@return number
 	function instance:getFlowRate()
-		return flowRate
+		return flowRate * scale
 	end
 
 	return instance
@@ -213,20 +226,26 @@ local _, setSmoothing = observable(0.3, function(alpha)
 	flowSensor:setSmoothing(alpha)
 end)
 
+local _, setScaleMode = observable(SCALE_MODE.sec, function(newScale)
+	local scale
+	if newScale == 1 then
+		scale = SCALE_MODE.sec
+	elseif newScale == 2 then
+		scale = SCALE_MODE.min
+	elseif newScale == 3 then
+		scale = SCALE_MODE.hour
+	else
+		-- TODO: Display 'ERR'
+		return
+	end
+	flowSensor:setScaleMode(scale)
+end)
+
 local function updateSettings()
 	local composite, ok = component.getInputLogicSlotComposite(SETTINGS_SLOT)
 	if not ok then
 		return
 	end
-	-- TODO: Read and update settings
-	--   Bool values:
-	-- x 1: Flip display
-	-- x 2: Reverse direction
-	--   Float values:
-	-- x 1: Fluid type bitmask
-	-- x 2: Smoothing (default: 0.3)
-	--   3: Mode (1=L/s, 2=L/m, 3=L/h)
-	-- x 4: Display FPS (default: 20)">
 
 	local boolValues = composite.bool_values
 
@@ -241,6 +260,7 @@ local function updateSettings()
 	local floats = composite.float_values
 	setFluidTypeBitmask(floats[1])
 	setSmoothing(floats[2])
+	setScaleMode(floats[3])
 	setDisplayFPS(floats[4])
 end
 
