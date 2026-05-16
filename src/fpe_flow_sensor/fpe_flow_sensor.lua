@@ -4,6 +4,7 @@ local useElectricCharge = require("../lib/use_electric_charge")
 local createTimer = require("sw-lua-lib/timer/callback_timer")
 local clamp = require("sw-lua-lib/extramath/clamp")
 local EMAFilter = require("sw-lua-lib/dsp/exponential_moving_average")
+local Set = require("../lib/set")
 
 local FILTERS = require("../lib/fluid_filters")
 local FILTERS_ALL = FILTERS.ALL
@@ -26,8 +27,12 @@ local ELECTRIC_USAGE = 0.0005
 
 local initialized = false
 local powered = false
-local errorState = false
 local direction = 1
+
+local ERROR_BITMASK = "E01"
+local ERROR_SCALE_MODE = "E02"
+
+local errors = Set() ---@type Set<'E01'|'E02'>
 
 local FLUID_FILTER_TO_VOLUME_MAPPING = {
 	-- Liquid:
@@ -179,15 +184,19 @@ end)
 
 local _, setFluidTypeBitmask = observable(0, function(bitmask)
 	local ok = flowSensor:setFluidTypes(bitmask)
-	-- TODO: Improve error state handling; allow multiple errors
-	errorState = not ok
+	if ok then
+		errors:remove(ERROR_BITMASK)
+	else
+		errors:add(ERROR_BITMASK)
+	end
 end)
 
 local function updateDisplay()
-	if not errorState then
-		setDisplayText(flowSensor:getFlowRate() * direction)
+	local anyError = errors:next()
+	if anyError then
+		setDisplayText(anyError)
 	else
-		setDisplayText("ERR")
+		setDisplayText(flowSensor:getFlowRate() * direction)
 	end
 end
 
@@ -217,9 +226,10 @@ local _, setScaleMode = observable(SCALE_MODE.sec, function(newScale)
 	elseif newScale == 3 then
 		scale = SCALE_MODE.hour
 	else
-		-- TODO: Display 'ERR'
+		errors:add(ERROR_SCALE_MODE)
 		return
 	end
+	errors:remove(ERROR_SCALE_MODE)
 	flowSensor:setScaleMode(scale)
 end)
 
@@ -251,8 +261,6 @@ function onTick(_)
 		flowSensor:init()
 		initialized = true
 	end
-
-	-- TODO: Display 'ERR' when fluid type bitmask is not set
 
 	updateSettings()
 
