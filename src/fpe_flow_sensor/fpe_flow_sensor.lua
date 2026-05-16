@@ -75,13 +75,6 @@ local function FlowSensor(volumeIndex, volumeSize, slotIn, slotOut)
 		component.fluidContentsSetCapacity(volumeIndex, volumeSize)
 	end
 
-	---@param fluidType integer
-	---@param ratio number
-	---@return number
-	local function getAmount(fluidType, ratio)
-		return (getVolumeContents(volumeIndex, fluidType) or 0) * ratio
-	end
-
 	---@return number flow Flow rate in L/s
 	local function measureFlow()
 		return 0.0
@@ -123,7 +116,7 @@ local function FlowSensor(volumeIndex, volumeSize, slotIn, slotOut)
 			local fluidType = fluid.type
 			local fluidRatio = fluid.ratio
 			local f = function()
-				return getAmount(fluidType, fluidRatio)
+				return (getVolumeContents(volumeIndex, fluidType) or 0) * fluidRatio
 			end
 			table.insert(funcs, f)
 		end
