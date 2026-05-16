@@ -1,5 +1,6 @@
 local observable = require("sw-lua-lib/observer/simple_observable")
 local DotMatrixDisplay = require("../lib/dot_matrix_display")
+local useElectricCharge = require("../lib/use_electric_charge")
 local createTimer = require("sw-lua-lib/timer/callback_timer")
 local clamp = require("sw-lua-lib/extramath/clamp")
 local EMAFilter = require("sw-lua-lib/dsp/exponential_moving_average")
@@ -47,18 +48,6 @@ local FLUID_FILTER_TO_VOLUME_MAPPING = {
 }
 
 local display = DotMatrixDisplay({ x = 0, y = 0, z = 0 }, 4)
-
----@return boolean
-local function useEnergy()
-	-- TODO: Extract to lib
-	local chargeFactor, ok = component.slotElectricGetChargeFactor(ELECTRIC_SLOT)
-	if ok and chargeFactor > ELECTRIC_USAGE then
-		component.slotElectricRemoveCharge(ELECTRIC_SLOT, ELECTRIC_USAGE)
-		return true
-	else
-		return false
-	end
-end
 
 ---@enum FlowSensorScaleMode
 local SCALE_MODE = {
@@ -274,7 +263,7 @@ function onTick(_)
 
 	updateSettings()
 
-	powered = useEnergy()
+	powered = useElectricCharge(ELECTRIC_SLOT, ELECTRIC_USAGE)
 
 	flowSensor:setEnabled(powered)
 	flowSensor:resolveFlow()

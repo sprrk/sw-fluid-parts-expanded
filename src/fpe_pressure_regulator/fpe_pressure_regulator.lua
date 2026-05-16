@@ -8,6 +8,7 @@ local PID = require("../lib/pid")
 local DotMatrixDisplay = require("../lib/dot_matrix_display")
 local clamp = require("sw-lua-lib/extramath/clamp")
 local observable = require("sw-lua-lib/observer/simple_observable")
+local useElectricCharge = require("../lib/use_electric_charge")
 
 local FLUID_VOLUME_SIZE_BUFFER = 2.0 -- Liters
 
@@ -31,17 +32,6 @@ local fluidSlotIn = FLUID_SLOT_A
 local fluidSlotOut = FLUID_SLOT_B
 
 local targetPressure = 0
-
----@return boolean
-local function useEnergy()
-	local chargeFactor, ok = component.slotElectricGetChargeFactor(ELECTRIC_SLOT)
-	if ok and chargeFactor > ELECTRIC_USAGE then
-		component.slotElectricRemoveCharge(ELECTRIC_SLOT, ELECTRIC_USAGE)
-		return true
-	else
-		return false
-	end
-end
 
 local display = DotMatrixDisplay({ x = 0, y = 0, z = 0 }, 4)
 
@@ -137,7 +127,7 @@ function onTick(_)
 
 	setDisplayEnabled(component.getInputLogicSlotBool(DISPLAY_SLOT))
 
-	powered = useEnergy()
+	powered = useElectricCharge(ELECTRIC_SLOT, ELECTRIC_USAGE)
 	if powered then
 		-- Read pressure from sensing line
 		component.slotFluidResolveFlow(
