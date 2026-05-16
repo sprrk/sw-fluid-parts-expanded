@@ -86,11 +86,11 @@ local function FlowSensor(volumeIndex, volumeSize, slotIn, slotOut)
 		component.fluidContentsSetCapacity(volumeIndex, volumeSize)
 	end
 
-	---@param fluid_type integer
+	---@param fluidType integer
 	---@param ratio number
 	---@return number
-	local function getAmount(fluid_type, ratio)
-		return (getVolumeContents(volumeIndex, fluid_type) or 0) * ratio
+	local function getAmount(fluidType, ratio)
+		return (getVolumeContents(volumeIndex, fluidType) or 0) * ratio
 	end
 
 	---@return number flow Flow rate in L/s
@@ -282,8 +282,6 @@ function onTick(_)
 	display:setEnabled(powered and component.getInputLogicSlotBool(DISPLAY_SLOT))
 
 	component.setOutputLogicSlotFloat(FLOW_OUTPUT_SLOT, flowSensor:getFlowRate())
-
-	-- TODO: Output flow rate per enabled fluid type to composite output slot
 end
 
 function onRender()

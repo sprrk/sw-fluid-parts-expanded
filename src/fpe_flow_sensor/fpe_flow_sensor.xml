@@ -52,25 +52,6 @@ Float values:
 		<logic_node label="Display" mode="1" type="0" description="Enables the display when receiving an on signal.">
 			<position x="0" y="1" z="0"/>
 		</logic_node>
-    <logic_node label="Flow Data" mode="0" type="5" description="Composite data containing the flow rates in L/s per enabled fluid type:
-1: Water
-2: Diesel
-3: Jet fuel
-4: Air
-5: Carbon dioxide
-6: Oil
-7: Seawater
-8: Steam
-9: Slurry
-10: Slurry (saturated)
-11: Oxygen
-12: Nitrogen
-13: Hydrogen
-30: Total liquid flow rate
-31: Total gas flow rate
-32: Total liquid+gas flow rate">
-			<position x="0" y="0" z="0"/>
-		</logic_node>
 	</logic_nodes>
 	<couplings/>
 	<voxels>
