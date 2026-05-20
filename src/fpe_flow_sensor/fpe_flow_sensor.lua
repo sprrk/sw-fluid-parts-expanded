@@ -271,7 +271,7 @@ function onTick(_)
 
 	display:setEnabled(powered and component.getInputLogicSlotBool(DISPLAY_SLOT))
 
-	component.setOutputLogicSlotFloat(FLOW_OUTPUT_SLOT, flowSensor:getFlowRate())
+	component.setOutputLogicSlotFloat(FLOW_OUTPUT_SLOT, flowSensor:getFlowRate() * direction)
 end
 
 function onRender()
